@@ -82,6 +82,14 @@ function calculateSlovRecoveryCostPerHuntAction(enduranceConsumedThisHunt, rarit
     return parseFloat((enduranceConsumedThisHunt * coeff).toFixed(2));
 }
 
+function validateFormData(data, targetAge) {
+    if (data.currentAge > targetAge) return `Target Age (${targetAge}) cannot be less than Current Age (${data.currentAge}).`;
+    if (data.maxLevel < data.currentLevel) return `Target Level (${data.maxLevel}) cannot be less than Current Level (${data.currentLevel}).`;
+    if ([data.currentLevel, data.maxLevel, data.currentTotalProficiency, data.currentTotalRecovery, data.energyPerAction, targetAge].some(isNaN)) return "Please ensure all inputs are valid numbers.";
+    if (data.currentTotalProficiency < 0 || data.currentTotalRecovery < 0 || data.energyPerAction <= 0 || targetAge <= 0 || data.currentLevel < 0 || data.maxLevel <= 0) return "Levels, Stats, Energy, and Age must be non-negative (or positive where applicable).";
+    return null;
+}
+
 // --- Main Calculation Logic ---
 function findOptimalDistributionAndSimulate(initialData, targetAge = 7) {
     const {
@@ -342,6 +350,38 @@ const targetAgeInput = document.getElementById('target-age');
 const calculateButton = document.getElementById('calculate-button');
 const resultsArea = document.getElementById('results-area');
 
+// Structured result fields
+const resultsCard = document.getElementById('results-card');
+const resultsTitle = document.getElementById('results-title');
+const resultsSummary = document.getElementById('results-summary');
+const resultProficiency = document.getElementById('result-proficiency');
+const resultRecovery = document.getElementById('result-recovery');
+const resultFinalProficiency = document.getElementById('result-final-proficiency');
+const resultFinalRecovery = document.getElementById('result-final-recovery');
+const resultLevelsGained = document.getElementById('result-levels-gained');
+const resultHuntsLeveling = document.getElementById('result-hunts-leveling');
+const resultGrossSlove = document.getElementById('result-gross-slove');
+const resultSloveSpent = document.getElementById('result-slove-spent');
+const resultNetSlove = document.getElementById('result-net-slove');
+const resultLevelingError = document.getElementById('result-leveling-error');
+const resultEnduranceHunt = document.getElementById('result-endurance-hunt');
+const resultHuntsTargetAge = document.getElementById('result-hunts-target-age');
+const resultBaseSloveHunt = document.getElementById('result-base-slove-hunt');
+const resultMaxTotalSlove = document.getElementById('result-max-total-slove');
+const resultRecoveryCost = document.getElementById('result-recovery-cost');
+const resultSingleHuntSection = document.getElementById('results-single-hunt-section');
+const resultSingleHunt = document.getElementById('result-single-hunt');
+const resultsTableContainer = document.getElementById('results-table-container');
+const resultsError = document.getElementById('results-error');
+const resultsPlaceholder = document.getElementById('results-placeholder');
+
+function clearResults() {
+    resultsCard.style.display = 'none';
+    resultsError.style.display = 'none';
+    resultsPlaceholder.style.display = '';
+    resultsTableContainer.innerHTML = '';
+}
+
 function getFormData() {
     return {
         rarityName: raritySelect.value,
@@ -356,82 +396,89 @@ function getFormData() {
     };
 }
 
-function validateFormData(data, targetAge) {
-    if (data.currentAge > targetAge) return `Target Age (${targetAge}) cannot be less than Current Age (${data.currentAge}).`;
-    if (data.maxLevel < data.currentLevel) return `Target Level (${data.maxLevel}) cannot be less than Current Level (${data.currentLevel}).`;
-    if ([data.currentLevel, data.maxLevel, data.currentTotalProficiency, data.currentTotalRecovery, data.energyPerAction, targetAge].some(isNaN)) return "Please ensure all inputs are valid numbers.";
-    if (data.currentTotalProficiency < 0 || data.currentTotalRecovery < 0 || data.energyPerAction <= 0 || targetAge <= 0 || data.currentLevel < 0 || data.maxLevel <= 0) return "Levels, Stats, Energy, and Age must be non-negative (or positive where applicable).";
-    return null;
-}
-
 function renderResults(result, initialData, targetAge) {
+    clearResults();
     if (result && result.error && !result.finalStats) {
-        resultsArea.innerHTML = `<p class="error">Error: ${result.error}</p>`;
-        resultsArea.classList.add('error');
+        resultsError.textContent = `Error: ${result.error}`;
+        resultsError.style.display = '';
+        return;
     } else if (result) {
-        let output = `<h2>Calculation Results</h2>`;
-        output += `<p class="success-summary">Optimal distribution found for ${result.rarity} ${result.class} (Lv ${result.startLevel} -> ${result.targetLevel}, Age ${initialData.currentAge} -> ${targetAge}).</p>`;
-        output += `<strong>Optimal Bonus Points to Add:</strong>\n`;
-        output += `  Proficiency: +${result.optimalDistributionToAdd?.proficiencyBonusToAdd ?? 'N/A'}\n`;
-        output += `  Recovery:    +${result.optimalDistributionToAdd?.recoveryBonusToAdd ?? 'N/A'}\n\n`;
-        output += `<strong>Final Stats at Level ${result.targetLevel}:</strong>\n`;
-        output += `  Total Proficiency: ${result.finalStats?.totalProficiency ?? 'N/A'}\n`;
-        output += `  Total Recovery:    ${result.finalStats?.totalRecovery ?? 'N/A'}\n\n`;
-        output += `<strong>Leveling Simulation (Lv ${result.startLevel} -> ${result.targetLevel}):</strong>\n`;
+        resultsCard.style.display = '';
+        resultsPlaceholder.style.display = 'none';
+        resultsTitle.textContent = 'Calculation Results';
+        resultsSummary.textContent = `Optimal distribution found for ${result.rarity} ${result.class} (Lv ${result.startLevel} -> ${result.targetLevel}, Age ${initialData.currentAge} -> ${targetAge}).`;
+        resultProficiency.textContent = result.optimalDistributionToAdd?.proficiencyBonusToAdd ?? 'N/A';
+        resultRecovery.textContent = result.optimalDistributionToAdd?.recoveryBonusToAdd ?? 'N/A';
+        resultFinalProficiency.textContent = result.finalStats?.totalProficiency ?? 'N/A';
+        resultFinalRecovery.textContent = result.finalStats?.totalRecovery ?? 'N/A';
+        // Leveling Simulation
         if (result.levelingSimulation?.error) {
-            output += `  <span class="error">ERROR: ${result.levelingSimulation.error}</span>\n\n`;
+            resultLevelingError.textContent = result.levelingSimulation.error;
+            resultLevelingError.style.display = '';
+            resultLevelsGained.textContent = '';
+            resultHuntsLeveling.textContent = '';
+            resultGrossSlove.textContent = '';
+            resultSloveSpent.textContent = '';
+            resultNetSlove.textContent = '';
         } else if (result.levelingSimulation) {
-            output += `  Levels Gained: ${result.targetLevel - result.startLevel}\n`;
-            output += `  Hunts for Leveling: ${result.levelingSimulation.totalHuntsToReachMaxLevel}\n`;
-            output += `  Gross BASE SLOV Earned: ${result.levelingSimulation.totalGrossBaseSloveEarnedDuringLeveling}\n`;
-            output += `  SLOV Spent on Levels: ${result.levelingSimulation.totalSloveSpentOnLeveling}\n`;
-            output += `  Net SLOV After Leveling: ${result.levelingSimulation.netSloveAfterLevelingCosts}\n\n`;
+            resultLevelingError.style.display = 'none';
+            resultLevelsGained.textContent = result.targetLevel - result.startLevel;
+            resultHuntsLeveling.textContent = result.levelingSimulation.totalHuntsToReachMaxLevel;
+            resultGrossSlove.textContent = result.levelingSimulation.totalGrossBaseSloveEarnedDuringLeveling;
+            resultSloveSpent.textContent = result.levelingSimulation.totalSloveSpentOnLeveling;
+            resultNetSlove.textContent = result.levelingSimulation.netSloveAfterLevelingCosts;
         } else {
-            output += `  Leveling simulation data not available.\n\n`;
+            resultLevelingError.textContent = 'Leveling simulation data not available.';
+            resultLevelingError.style.display = '';
         }
-        output += `<strong>Earnings Outcome (Optimal Build, Up to Age ${targetAge}):</strong>\n`;
+        // Earnings Outcome
         if (result.earningsOutcome) {
-            output += `  Endurance/Hunt (at Lv ${result.targetLevel}): ${result.earningsOutcome.enduranceConsumedPerHuntAction}\n`;
-            output += `  Hunts to Reach Age ${targetAge}: ${result.earningsOutcome.huntsToReachTargetAge}\n`;
-            output += `  BASE SLOV/Hunt (Lv ${result.targetLevel}, Year 0): ${result.earningsOutcome.baseSlovePerHuntActionAtMaxLevel}\n`;
-            output += `  Max Total BASE SLOV by Age ${targetAge} (Gross, Reduced): ${result.earningsOutcome.maxTotalBaseSloveEarnedByTargetAge}\n`;
-            output += `  (Info) Recovery Cost/Hunt (Lv ${result.targetLevel}): ${result.earningsOutcome.slovRecoveryCostPerHuntActionAtMaxLevel} SLOV\n\n`;
-            if (initialData.currentAge === targetAge) {
-                output += `<strong>Single Hunt Earnings at Age ${targetAge} and Level ${result.targetLevel}:</strong>\n`;
-                output += `  SLOV Earned: ${result.yearlyBreakdown[0]?.slovePerHunt ?? 'N/A'} SLOV\n\n`;
-            }
-            output += `<strong>SLOV Earnings by Age (with Aging Reduction):</strong>\n`;
-            if (result.yearlyBreakdown && result.yearlyBreakdown.length > 0) {
-                output += `<table class="earnings-table">`;
-                output += `<tr><th>Age</th><th>Level</th><th>SLOV/Hunt</th><th>Hunts</th><th>Total SLOV</th><th>Balance</th></tr>`;
-                result.yearlyBreakdown.forEach(year => {
-                    output += `<tr>
-                        <td>Year ${year.age}</td>
-                        <td>Lv ${year.level}</td>
-                        <td>${year.slovePerHunt}</td>
-                        <td>${year.huntsInYear}</td>
-                        <td>${year.totalSloveInYear}</td>
-                        <td>${year.sloveBalance || 0}</td>
-                    </tr>`;
-                });
-                output += `</table>`;
-            } else {
-                output += `  Year-by-year earnings data not available.\n`;
-            }
+            resultEnduranceHunt.textContent = result.earningsOutcome.enduranceConsumedPerHuntAction;
+            resultHuntsTargetAge.textContent = result.earningsOutcome.huntsToReachTargetAge;
+            resultBaseSloveHunt.textContent = result.earningsOutcome.baseSlovePerHuntActionAtMaxLevel;
+            resultMaxTotalSlove.textContent = result.earningsOutcome.maxTotalBaseSloveEarnedByTargetAge;
+            resultRecoveryCost.textContent = result.earningsOutcome.slovRecoveryCostPerHuntActionAtMaxLevel + ' SLOV';
         } else {
-            output += `  Earnings outcome data not available.\n`;
+            resultEnduranceHunt.textContent = '';
+            resultHuntsTargetAge.textContent = '';
+            resultBaseSloveHunt.textContent = '';
+            resultMaxTotalSlove.textContent = '';
+            resultRecoveryCost.textContent = '';
         }
-        resultsArea.innerHTML = output;
-        resultsArea.className = '';
+        // Single Hunt Earnings
+        if (initialData.currentAge === targetAge && result.yearlyBreakdown && result.yearlyBreakdown[0]) {
+            resultSingleHuntSection.style.display = '';
+            resultSingleHunt.textContent = result.yearlyBreakdown[0].slovePerHunt ?? 'N/A';
+        } else {
+            resultSingleHuntSection.style.display = 'none';
+        }
+        // SLOV Earnings by Age Table
+        if (result.yearlyBreakdown && result.yearlyBreakdown.length > 0) {
+            const table = document.createElement('table');
+            table.className = 'earnings-table';
+            const thead = document.createElement('thead');
+            thead.innerHTML = '<tr><th>Age</th><th>Level</th><th>SLOV/Hunt</th><th>Hunts</th><th>Total SLOV</th><th>Balance</th></tr>';
+            table.appendChild(thead);
+            const tbody = document.createElement('tbody');
+            result.yearlyBreakdown.forEach(year => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>Year ${year.age}</td><td>Lv ${year.level}</td><td>${year.slovePerHunt}</td><td>${year.huntsInYear}</td><td>${year.totalSloveInYear}</td><td>${year.sloveBalance || 0}</td>`;
+                tbody.appendChild(tr);
+            });
+            table.appendChild(tbody);
+            resultsTableContainer.innerHTML = '';
+            resultsTableContainer.appendChild(table);
+        } else {
+            resultsTableContainer.innerHTML = '<p>Year-by-year earnings data not available.</p>';
+        }
     } else {
-        resultsArea.innerHTML = `<p class="error">An unknown error occurred. Calculation failed.</p>`;
-        resultsArea.classList.add('error');
+        resultsPlaceholder.style.display = '';
     }
 }
 
 calculateButton.addEventListener('click', () => {
-    resultsArea.innerHTML = '<p>Calculating...</p>';
-    resultsArea.className = '';
+    clearResults();
+    resultsPlaceholder.innerHTML = '<p>Calculating...</p>';
     try {
         const initialData = getFormData();
         const targetAge = parseInt(targetAgeInput.value, 10);
@@ -440,8 +487,9 @@ calculateButton.addEventListener('click', () => {
         const result = findOptimalDistributionAndSimulate(initialData, targetAge);
         renderResults(result, initialData, targetAge);
     } catch (e) {
-        console.error("Calculation Error:", e);
-        resultsArea.innerHTML = `<p class="error">Error during calculation: ${e.message || e}</p>`;
-        resultsArea.classList.add('error');
+        resultsCard.style.display = 'none';
+        resultsError.textContent = `Error during calculation: ${e.message || e}`;
+        resultsError.style.display = '';
+        resultsPlaceholder.style.display = 'none';
     }
 });
