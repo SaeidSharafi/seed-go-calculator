@@ -258,6 +258,7 @@ function simulateLevelingProcessWithCorrectedFormulas(initialData, optimalDistri
         }
 
         // Simulate hunts if needed for this level
+        let huntsNeededThisLevel = 0;
         if (levelUpCostSlove > currentSloveBalance) {
              const slovNeededForNextLevel = levelUpCostSlove - currentSloveBalance;
 
