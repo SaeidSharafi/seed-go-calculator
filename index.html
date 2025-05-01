@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monster Age/Level Optimizer</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Monster Age & Level Optimizer</h1>
+        <p class="assumption-note">Based on formula analysis. Coefficient affects recovery cost ONLY.</p>
+
+        <form id="calculator-form">
+            <div class="form-grid">
+                <!-- Monster Details -->
+                <div class="form-group">
+                    <label for="rarity">Rarity:</label>
+                    <select id="rarity" required>
+                        <option value="Common">Common</option>
+                        <option value="Uncommon" selected>Uncommon</option>
+                        <option value="Rare">Rare</option>
+                        <option value="Epic">Epic</option>
+                        <option value="Legendary">Legendary</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="class">Class:</label>
+                    <select id="class" required>
+                        <option value="Aqua">Aqua</option>
+                        <option value="Reptile">Reptile</option>
+                        <option value="Beast">Beast</option>
+                        <option value="Plant" selected>Plant</option>
+                        <option value="Bird">Bird</option>
+                        <option value="Ghost">Ghost</option>
+                    </select>
+                </div>
+
+                <!-- Levels -->
+                 <div class="form-group">
+                    <label for="current-level">Current Level (0-29):</label>
+                    <input type="number" id="current-level" value="0" min="0" max="29" step="1" required>
+                </div>
+                 <div class="form-group">
+                    <label for="max-level">Target Level (1-30):</label>
+                    <input type="number" id="max-level" value="30" min="1" max="30" step="1" required>
+                </div>
+
+                <!-- Stats -->
+                 <div class="form-group">
+                    <label for="current-proficiency">Current Total Proficiency:</label>
+                    <input type="number" id="current-proficiency" value="8" min="0" step="1" required>
+                </div>
+                 <div class="form-group">
+                    <label for="current-recovery">Current Total Recovery:</label>
+                    <input type="number" id="current-recovery" value="8" min="0" step="1" required>
+                </div>
+
+                <!-- Simulation Params -->
+                 <div class="form-group">
+                    <label for="energy-per-action">Energy per Hunt Action:</label>
+                    <input type="number" id="energy-per-action" value="6" min="1" step="1" required>
+                </div>
+                <div class="form-group">
+                    <label for="target-age">Target Age (Years):</label>
+                    <input type="number" id="target-age" value="10" min="1" step="1" required>
+                </div>
+            </div>
+
+            <button type="button" id="calculate-button">Calculate Optimal Build</button>
+        </form>
+
+        <div id="results-area">
+            <!-- Results will be displayed here -->
+             <p>Enter your monster's details and click calculate.</p>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
