@@ -26,17 +26,37 @@ const BASE_EARNING_COEFFICIENTS = {
 };
 
 const LEVEL_UP_DATA = [
-    { level: "0", priceSlove: "0" }, { level: "1", priceSlove: "1" }, { level: "2", priceSlove: "2" },
-    { level: "3", priceSlove: "3" }, { level: "4", priceSlove: "4" }, { level: "5", priceSlove: "20" },
-    { level: "6", priceSlove: "6" }, { level: "7", priceSlove: "10.5" }, { level: "8", priceSlove: "12" },
-    { level: "9", priceSlove: "13.5" }, { level: "10", priceSlove: "30" }, { level: "11", priceSlove: "16.5" },
-    { level: "12", priceSlove: "18" }, { level: "13", priceSlove: "19.5" }, { level: "14", priceSlove: "21" },
-    { level: "15", priceSlove: "22.5" }, { level: "16", priceSlove: "24" }, { level: "17", priceSlove: "25.5" },
-    { level: "18", priceSlove: "27" }, { level: "19", priceSlove: "28.5" }, { level: "20", priceSlove: "60" },
-    { level: "21", priceSlove: "31.5" }, { level: "22", priceSlove: "33" }, { level: "23", priceSlove: "34.5" },
-    { level: "24", priceSlove: "36" }, { level: "25", priceSlove: "37.5" }, { level: "26", priceSlove: "39" },
-    { level: "27", priceSlove: "40.5" }, { level: "28", priceSlove: "42" }, { level: "29", priceSlove: "43.5" },
-    { level: "30", priceSlove: "100" }
+    { level: "0", priceSlove: "0", priceSeed: "0", timeHour: "0" },
+    { level: "1", priceSlove: "1", priceSeed: "10", timeHour: "1" },
+    { level: "2", priceSlove: "2", priceSeed: "20", timeHour: "2" },
+    { level: "3", priceSlove: "3", priceSeed: "30", timeHour: "3" },
+    { level: "4", priceSlove: "4", priceSeed: "40", timeHour: "4" },
+    { level: "5", priceSlove: "20", priceSeed: "100", timeHour: "5" },
+    { level: "6", priceSlove: "9", priceSeed: "69", timeHour: "6" },
+    { level: "7", priceSlove: "10.5", priceSeed: "105", timeHour: "7" },
+    { level: "8", priceSlove: "12", priceSeed: "120", timeHour: "8" },
+    { level: "9", priceSlove: "13.5", priceSeed: "135", timeHour: "9" },
+    { level: "10", priceSlove: "30", priceSeed: "300", timeHour: "10" },
+    { level: "11", priceSlove: "16.5", priceSeed: "165", timeHour: "11" },
+    { level: "12", priceSlove: "18", priceSeed: "180", timeHour: "12" },
+    { level: "13", priceSlove: "19.5", priceSeed: "195", timeHour: "13" },
+    { level: "14", priceSlove: "21", priceSeed: "210", timeHour: "14" },
+    { level: "15", priceSlove: "22.5", priceSeed: "225", timeHour: "15" },
+    { level: "16", priceSlove: "24", priceSeed: "240", timeHour: "16" },
+    { level: "17", priceSlove: "25.5", priceSeed: "255", timeHour: "17" },
+    { level: "18", priceSlove: "27", priceSeed: "270", timeHour: "18" },
+    { level: "19", priceSlove: "28.5", priceSeed: "285", timeHour: "19" },
+    { level: "20", priceSlove: "60", priceSeed: "600", timeHour: "20" },
+    { level: "21", priceSlove: "31.5", priceSeed: "315", timeHour: "21" },
+    { level: "22", priceSlove: "33", priceSeed: "330", timeHour: "22" },
+    { level: "23", priceSlove: "34.5", priceSeed: "345", timeHour: "23" },
+    { level: "24", priceSlove: "36", priceSeed: "360", timeHour: "24" },
+    { level: "25", priceSlove: "37.5", priceSeed: "375", timeHour: "25" },
+    { level: "26", priceSlove: "39", priceSeed: "390", timeHour: "26" },
+    { level: "27", priceSlove: "40.5", priceSeed: "405", timeHour: "27" },
+    { level: "28", priceSlove: "42", priceSeed: "420", timeHour: "28" },
+    { level: "29", priceSlove: "43.5", priceSeed: "435", timeHour: "29" },
+    { level: "30", priceSlove: "100", priceSeed: "1000", timeHour: "30" }
 ];
 
 const FIBONACCI_REDUCTION_PERCENT = [0, 1, 1, 2, 3, 5, 8, 13, 21, 34];
@@ -65,7 +85,10 @@ function getSloveLevelUpCost(targetLevel) {
     const data = LEVEL_UP_DATA.find(item => parseInt(item.level) === targetLevel);
     return data ? parseFloat(data.priceSlove) : Infinity;
 }
-
+function getSeedLevelUpCost(targetLevel) {
+    const data = LEVEL_UP_DATA.find(item => parseInt(item.level) === targetLevel);
+    return data ? parseFloat(data.priceSeed) : Infinity;
+}
 function calculateEnduranceConsumedPerHuntAction(totalRecoveryPoints, energyPerAction) {
     if (totalRecoveryPoints <= 0) return Infinity;
     if (energyPerAction <= 0) return 0;
@@ -88,6 +111,13 @@ function validateFormData(data, targetAge) {
     if ([data.currentLevel, data.maxLevel, data.currentTotalProficiency, data.currentTotalRecovery, data.energyPerAction, targetAge].some(isNaN)) return "Please ensure all inputs are valid numbers.";
     if (data.currentTotalProficiency < 0 || data.currentTotalRecovery < 0 || data.energyPerAction <= 0 || targetAge <= 0 || data.currentLevel < 0 || data.maxLevel <= 0) return "Levels, Stats, Energy, and Age must be non-negative (or positive where applicable).";
     return null;
+}
+
+function formatTimeDH(totalMinutes) {
+    const days = Math.floor(totalMinutes / 1440);
+    const hours = Math.floor((totalMinutes % 1440) / 60);
+    const minutes = Math.floor(totalMinutes % 60);
+    return `${days}d ${hours}h ${minutes}m`;
 }
 
 // --- Main Calculation Logic ---
@@ -113,6 +143,7 @@ function findOptimalDistributionAndSimulate(initialData, targetAge = 7) {
     let maxTotalBaseSloveEarnedForTargetAge = -1;
     let bestOutcome = null;
     let bestYearlyBreakdown = [];
+    let bestLevelingTime = null;
 
     const totalEnduranceForTargetAge = ((targetAge - currentAge) * 100) - currentEdurance;
 
@@ -226,16 +257,20 @@ function findOptimalDistributionAndSimulate(initialData, targetAge = 7) {
     if (!bestOutcome) {
         return { error: `Could not find any valid allocation for Prof/Rec points that allows aging to level ${maxLevel} and age ${targetAge} (potentially due to very low Recovery causing infinite or zero endurance cost).` };
     }
-    const levelingSimResults = simulateLevelingProcessWithCorrectedFormulas(initialData, bestAllocation);
-    if (levelingSimResults.error) {
-        console.error("Error during leveling simulation for the best build:", levelingSimResults.error);
-        return {
-            ...bestOutcome,
-            optimalDistributionToAdd: bestAllocation,
-            levelingSimulation: { error: levelingSimResults.error },
-            assumption: `Coefficient affects Recovery Cost ONLY. Age reduction applied to BASE earnings. Target age: ${targetAge} years. LEVELING SIMULATION FAILED.`,
-            rarity: rarityName, class: className, startLevel: currentLevel, targetLevel: maxLevel, energyPerAction: energyPerAction
-        };
+    const leaderResult = simulateLevelingProcessWithCorrectedFormulas({ ...initialData, isLeader: true }, bestAllocation);
+    const bulkResult = simulateLevelingProcessWithCorrectedFormulas({ ...initialData, isLeader: false, bulkLevel: true }, bestAllocation);
+    const alternateResult = simulateLevelingProcessWithCorrectedFormulas({ ...initialData, isLeader: false, alternate: true }, bestAllocation);
+    const enduranceConsumedPerHuntAction = bestOutcome.agingOutcome.enduranceConsumedPerHuntAction;
+    const huntsNeededForAge = bestOutcome.agingOutcome.huntsToReachTargetAge;
+    let totalAgeMinutes = 0;
+    const maxEnergy = initialData.energyPerAction;
+    const refillRateMinutes = 24 * 60 / maxEnergy;
+    const huntTimePerEnergy = 10;
+    for (let i = 0; i < huntsNeededForAge; i++) {
+        totalAgeMinutes += maxEnergy * huntTimePerEnergy;
+        if (i < huntsNeededForAge - 1) {
+            totalAgeMinutes += maxEnergy * refillRateMinutes;
+        }
     }
     return {
         assumption: `Coefficient affects Recovery Cost ONLY. Age reduction applied to BASE earnings. Target age: ${targetAge} years.`,
@@ -246,9 +281,16 @@ function findOptimalDistributionAndSimulate(initialData, targetAge = 7) {
         targetLevel: maxLevel,
         optimalDistributionToAdd: bestAllocation,
         finalStats: bestOutcome.finalStats,
-        levelingSimulation: levelingSimResults,
+        levelingSimulation: leaderResult,
         earningsOutcome: bestOutcome.agingOutcome,
-        yearlyBreakdown: bestYearlyBreakdown
+        yearlyBreakdown: bestYearlyBreakdown,
+        timeToLevelUp: formatTimeDH(leaderResult.totalLevelingMinutes),
+        timeToTargetAge: formatTimeDH(totalAgeMinutes),
+        scenarioResults: {
+            leader: leaderResult,
+            bulk: bulkResult,
+            alternate: alternateResult
+        }
     };
 }
 
@@ -267,16 +309,199 @@ function simulateLevelingProcessWithCorrectedFormulas(initialData, optimalDistri
     let totalHuntsPerformedThisSim = 0;
     let totalGrossBaseSloveEarnedDuringLeveling = 0;
     let totalSloveSpentOnLeveling = 0;
+    let totalSeedSpentOnLeveling = 0;
     let totalEnduranceConsumedThisSim = currentEdurance;
+    let totalLevelingMinutes = 0;
+    const maxEnergy = initialData.energyPerAction;
+    const refillRateMinutes = 24 * 60 / maxEnergy;
+    const huntTimePerEnergy = 10;
+
+    const scenario = initialData.bulkLevel ? 'bulk' : initialData.alternate ? 'alternate' : 'leader';
+    let leaderSlovePerHunt = null;
+    if (initialData.bulkLevel || initialData.alternate) {
+        leaderSlovePerHunt = calculateBaseSlovePerHuntAction(
+            initialData.leaderProficiency,
+            initialData.className,
+            initialData.energyPerAction
+        );
+    }
+
     if (simulationCurrentLevel >= maxLevel) {
-        return { totalHuntsToReachMaxLevel: 0, totalGrossBaseSloveEarnedDuringLeveling: 0, totalSloveSpentOnLeveling: 0, netSloveAfterLevelingCosts: 0 };
+        return { totalHuntsToReachMaxLevel: 0, totalGrossBaseSloveEarnedDuringLeveling: 0, totalSloveSpentOnLeveling: 0, totalSeedpentOnLeveling: 0, netSloveAfterLevelingCosts: 0, totalLevelingMinutes: 0 };
+    }
+    if (scenario === 'leader') {
+        let profBonusAccum = 0;
+        let recBonusAccum = 0;
+        while (simulationCurrentLevel < maxLevel) {
+            const targetLevel = simulationCurrentLevel + 1;
+            const levelUpCostSlove = getSloveLevelUpCost(targetLevel);
+            const levelUpCostSeed = getSeedLevelUpCost(targetLevel);
+            if (!isFinite(levelUpCostSlove) || !isFinite(levelUpCostSeed)) {
+                return { error: `Missing or invalid level data for level ${targetLevel}` };
+            }
+            // Only hunt if not enough SLOV for level up
+            if (currentSloveBalance < levelUpCostSlove) {
+                const totalBonusPoints = rarityInfo.bonusPts;
+                const profRatio = proficiencyBonusToAdd / (proficiencyBonusToAdd + recoveryBonusToAdd);
+                const recRatio = recoveryBonusToAdd / (proficiencyBonusToAdd + recoveryBonusToAdd);
+                let profBonusThisLevel = 0;
+                let recBonusThisLevel = 0;
+                if (proficiencyBonusToAdd + recoveryBonusToAdd > 0) {
+                    profBonusThisLevel = totalBonusPoints * profRatio;
+                    recBonusThisLevel = totalBonusPoints * recRatio;
+                }
+                const profNow = currentTotalProficiency + profBonusAccum;
+                const recNow = currentTotalRecovery + recBonusAccum;
+                const baseSlovePerHuntActionCurrentLevel = calculateBaseSlovePerHuntAction(profNow, className, energyPerAction);
+                const enduranceConsumedThisLevelAction = calculateEnduranceConsumedPerHuntAction(recNow, energyPerAction);
+                const currentSimYear = Math.floor(totalEnduranceConsumedThisSim / 100) + currentAge;
+                const reductionPercent = getFibonacciReductionPercent(currentSimYear);
+                const earningMultiplier = Math.max(0, 1 - (reductionPercent / 100));
+                const sloveEarnedThisAction = baseSlovePerHuntActionCurrentLevel * earningMultiplier;
+                totalGrossBaseSloveEarnedDuringLeveling += sloveEarnedThisAction;
+                totalHuntsPerformedThisSim++;
+                totalEnduranceConsumedThisSim += enduranceConsumedThisLevelAction;
+                totalLevelingMinutes += maxEnergy * huntTimePerEnergy;
+                totalLevelingMinutes += maxEnergy * refillRateMinutes;
+                currentSloveBalance += sloveEarnedThisAction;
+                totalLevelingMinutes += maxEnergy * refillRateMinutes;
+                continue;
+            }
+            currentSloveBalance -= levelUpCostSlove;
+            totalSloveSpentOnLeveling += levelUpCostSlove;
+            totalSeedSpentOnLeveling += levelUpCostSeed;
+            simulationCurrentLevel++;
+            const totalBonusPoints = rarityInfo.bonusPts;
+            const profRatio = proficiencyBonusToAdd / (proficiencyBonusToAdd + recoveryBonusToAdd);
+            const recRatio = recoveryBonusToAdd / (proficiencyBonusToAdd + recoveryBonusToAdd);
+            let profBonusThisLevel = 0;
+            let recBonusThisLevel = 0;
+            if (proficiencyBonusToAdd + recoveryBonusToAdd > 0) {
+                profBonusThisLevel = totalBonusPoints * profRatio;
+                recBonusThisLevel = totalBonusPoints * recRatio;
+            }
+            profBonusAccum += profBonusThisLevel;
+            recBonusAccum += recBonusThisLevel;
+            totalLevelingMinutes += maxEnergy * refillRateMinutes;
+        }
+        return {
+            totalHuntsToReachMaxLevel: totalHuntsPerformedThisSim,
+            totalGrossBaseSloveEarnedDuringLeveling: parseFloat(totalGrossBaseSloveEarnedDuringLeveling.toFixed(2)),
+            totalSloveSpentOnLeveling: parseFloat(totalSloveSpentOnLeveling.toFixed(2)),
+            totalSeedSpentOnLeveling: parseFloat(totalSeedSpentOnLeveling.toFixed(2)),
+            netSloveAfterLevelingCosts: parseFloat(currentSloveBalance.toFixed(2)),
+            totalLevelingMinutes
+        };
+    }
+    // Bulk scenario: level up as soon as we have SLOV, otherwise hunt if energy is full, otherwise wait
+    if (scenario === 'bulk') {
+        let profBonusAccum = 0;
+        let recBonusAccum = 0;
+        let energy = maxEnergy;
+        while (simulationCurrentLevel < maxLevel) {
+            // A: is our energy full and not leveling up?
+            if (energy === maxEnergy) {
+                // AA: do we have enough SLOV for next level?
+                while (simulationCurrentLevel < maxLevel && currentSloveBalance >= getSloveLevelUpCost(simulationCurrentLevel + 1)) {
+                    // AAA: yes -> level up
+                    const targetLevel = simulationCurrentLevel + 1;
+                    const levelUpCostSlove = getSloveLevelUpCost(targetLevel);
+                    const levelUpCostSeed = getSeedLevelUpCost(targetLevel);
+                    currentSloveBalance -= levelUpCostSlove;
+                    totalSloveSpentOnLeveling += levelUpCostSlove;
+                    totalSeedSpentOnLeveling += levelUpCostSeed;
+                    simulationCurrentLevel++;
+                    // Wait for full refill before next possible hunt/level up
+                    totalLevelingMinutes += maxEnergy * refillRateMinutes;
+                }
+                // After leveling, check if we can hunt
+                if (simulationCurrentLevel < maxLevel && currentSloveBalance < getSloveLevelUpCost(simulationCurrentLevel + 1)) {
+                    // AAB: not enough SLOV, so hunt
+                    const slovePerHunt = leaderSlovePerHunt;
+                    totalGrossBaseSloveEarnedDuringLeveling += slovePerHunt;
+                    totalHuntsPerformedThisSim++;
+                    totalEnduranceConsumedThisSim += calculateEnduranceConsumedPerHuntAction(initialData.leaderRecovery, energyPerAction);
+                    totalLevelingMinutes += maxEnergy * huntTimePerEnergy;
+                    energy = 0;
+                    currentSloveBalance += slovePerHunt;
+                }
+            } else {
+                // AB: energy not full, wait
+                const refillNeeded = maxEnergy - energy;
+                totalLevelingMinutes += refillNeeded * refillRateMinutes;
+                energy = maxEnergy;
+            }
+        }
+        return {
+            totalHuntsToReachMaxLevel: totalHuntsPerformedThisSim,
+            totalGrossBaseSloveEarnedDuringLeveling: parseFloat(totalGrossBaseSloveEarnedDuringLeveling.toFixed(2)),
+            totalSloveSpentOnLeveling: parseFloat(totalSloveSpentOnLeveling.toFixed(2)),
+            totalSeedSpentOnLeveling: parseFloat(totalSeedSpentOnLeveling.toFixed(2)),
+            netSloveAfterLevelingCosts: parseFloat(currentSloveBalance.toFixed(2)),
+            totalLevelingMinutes
+        };
+    }
+    // Alternate scenario: hunt or level up+immediate hunt, otherwise wait
+    if (scenario === 'alternate') {
+        let profBonusAccum = 0;
+        let recBonusAccum = 0;
+        let energy = maxEnergy;
+        while (simulationCurrentLevel < maxLevel) {
+            // A: is our energy full and not leveling up?
+            if (energy === maxEnergy) {
+                // AA: do we have enough SLOV for next level?
+                if (currentSloveBalance < getSloveLevelUpCost(simulationCurrentLevel + 1)) {
+                    // AAA: not enough SLOV, so hunt
+                    const slovePerHunt = leaderSlovePerHunt;
+                    totalGrossBaseSloveEarnedDuringLeveling += slovePerHunt;
+                    totalHuntsPerformedThisSim++;
+                    totalEnduranceConsumedThisSim += calculateEnduranceConsumedPerHuntAction(initialData.leaderRecovery, energyPerAction);
+                    totalLevelingMinutes += maxEnergy * huntTimePerEnergy;
+                    energy = 0;
+                    currentSloveBalance += slovePerHunt;
+                } else {
+                    // AAB: enough SLOV, level up and immediately hunt
+                    const targetLevel = simulationCurrentLevel + 1;
+                    const levelUpCostSlove = getSloveLevelUpCost(targetLevel);
+                    const levelUpCostSeed = getSeedLevelUpCost(targetLevel);
+                    currentSloveBalance -= levelUpCostSlove;
+                    totalSloveSpentOnLeveling += levelUpCostSlove;
+                    totalSeedSpentOnLeveling += levelUpCostSeed;
+                    simulationCurrentLevel++;
+                    // Hunt immediately after level up
+                    const slovePerHunt = leaderSlovePerHunt;
+                    totalGrossBaseSloveEarnedDuringLeveling += slovePerHunt;
+                    totalHuntsPerformedThisSim++;
+                    totalEnduranceConsumedThisSim += calculateEnduranceConsumedPerHuntAction(initialData.leaderRecovery, energyPerAction);
+                    totalLevelingMinutes += maxEnergy * huntTimePerEnergy;
+                    energy = 0;
+                    currentSloveBalance += slovePerHunt;
+                }
+            } else {
+                // AB: energy not full, wait
+                const refillNeeded = maxEnergy - energy;
+                totalLevelingMinutes += refillNeeded * refillRateMinutes;
+                energy = maxEnergy;
+            }
+        }
+        return {
+            totalHuntsToReachMaxLevel: totalHuntsPerformedThisSim,
+            totalGrossBaseSloveEarnedDuringLeveling: parseFloat(totalGrossBaseSloveEarnedDuringLeveling.toFixed(2)),
+            totalSloveSpentOnLeveling: parseFloat(totalSloveSpentOnLeveling.toFixed(2)),
+            totalSeedSpentOnLeveling: parseFloat(totalSeedSpentOnLeveling.toFixed(2)),
+            netSloveAfterLevelingCosts: parseFloat(currentSloveBalance.toFixed(2)),
+            totalLevelingMinutes
+        };
     }
     while (simulationCurrentLevel < maxLevel) {
         const targetLevel = simulationCurrentLevel + 1;
         const levelUpCostSlove = getSloveLevelUpCost(targetLevel);
-        if (!isFinite(levelUpCostSlove)) {
+        const levelUpCostSeed = getSeedLevelUpCost(targetLevel);
+
+        if (!isFinite(levelUpCostSlove) || !isFinite(levelUpCostSeed)) {
             return { error: `Missing or invalid level data for level ${targetLevel}` };
         }
+
         const bonusPointsUpToCurrentSimLevel = simulationCurrentLevel * rarityInfo.bonusPts;
         const bonusPointsAddedDuringSimSoFar = Math.max(0, bonusPointsUpToCurrentSimLevel - bonusPointsAlreadySpent);
         const simCurrentProfBonusAdded = (remainingBonusPointsToAllocate > 0)
@@ -293,10 +518,12 @@ function simulateLevelingProcessWithCorrectedFormulas(initialData, optimalDistri
             return { error: `Endurance consumption invalid (${enduranceConsumedThisLevelAction.toFixed(4)}) at level ${simulationCurrentLevel} (Rec ${simCurrentTotalRecovery.toFixed(2)}). Cannot simulate.` };
         }
         let huntsNeededThisLevel = 0;
+        let energyUsedThisLevel = 0;
         if (levelUpCostSlove > currentSloveBalance) {
             const slovNeededForNextLevel = levelUpCostSlove - currentSloveBalance;
-            if (baseSlovePerHuntActionCurrentLevel <= 0) {
-                return { error: `Cannot earn SLOV (Base Rate ${baseSlovePerHuntActionCurrentLevel}) to level up from ${simulationCurrentLevel}.` };
+            const slovePerHunt = leaderSlovePerHunt || baseSlovePerHuntActionCurrentLevel;
+            if (slovePerHunt <= 0) {
+                return { error: `Cannot earn SLOV (Base Rate ${slovePerHunt}) to level up from ${simulationCurrentLevel}.` };
             }
             if (enduranceConsumedThisLevelAction === 0) {
                 return { error: `Zero endurance cost at level ${simulationCurrentLevel} while needing SLOV. Cannot determine hunts needed.` };
@@ -307,7 +534,7 @@ function simulateLevelingProcessWithCorrectedFormulas(initialData, optimalDistri
                 const currentSimYear = Math.floor(totalEnduranceConsumedThisSim / 100) + currentAge;
                 const reductionPercent = getFibonacciReductionPercent(currentSimYear);
                 const earningMultiplier = Math.max(0, 1 - (reductionPercent / 100));
-                const sloveEarnedThisAction = baseSlovePerHuntActionCurrentLevel * earningMultiplier;
+                const sloveEarnedThisAction = slovePerHunt;
                 if (sloveEarnedThisAction <= 0 && (currentSloveBalance + accumulatedSloveThisLevel < levelUpCostSlove)) {
                     return { error: `Earning rate dropped to zero at year ${currentSimYear} (level ${simulationCurrentLevel}) due to age reduction. Cannot complete leveling.` };
                 }
@@ -316,6 +543,8 @@ function simulateLevelingProcessWithCorrectedFormulas(initialData, optimalDistri
                 totalHuntsPerformedThisSim++;
                 totalEnduranceConsumedThisSim += enduranceConsumedThisLevelAction;
                 huntsNeededThisLevel++;
+                totalLevelingMinutes += maxEnergy * huntTimePerEnergy;
+                totalLevelingMinutes += maxEnergy * refillRateMinutes;
                 if (huntsNeededThisLevel > maxHuntsPerLevel) {
                     console.error(`Stats at error: Level=${simulationCurrentLevel}, BaseEarnRate=${baseSlovePerHuntActionCurrentLevel}, EnduCost=${enduranceConsumedThisLevelAction}, Needed=${slovNeededForNextLevel}, Accumulated=${accumulatedSloveThisLevel}`)
                     return { error: `Hunt limit (${maxHuntsPerLevel}) exceeded for level ${targetLevel}. Potential issue or extreme stats.` };
@@ -323,15 +552,19 @@ function simulateLevelingProcessWithCorrectedFormulas(initialData, optimalDistri
             }
             currentSloveBalance += accumulatedSloveThisLevel;
         }
+        totalLevelingMinutes += maxEnergy * refillRateMinutes;
         currentSloveBalance -= levelUpCostSlove;
         totalSloveSpentOnLeveling += levelUpCostSlove;
+        totalSeedSpentOnLeveling += levelUpCostSeed;
         simulationCurrentLevel++;
     }
     return {
         totalHuntsToReachMaxLevel: totalHuntsPerformedThisSim,
         totalGrossBaseSloveEarnedDuringLeveling: parseFloat(totalGrossBaseSloveEarnedDuringLeveling.toFixed(2)),
         totalSloveSpentOnLeveling: parseFloat(totalSloveSpentOnLeveling.toFixed(2)),
+        totalSeedSpentOnLeveling: parseFloat(totalSeedSpentOnLeveling.toFixed(2)),
         netSloveAfterLevelingCosts: parseFloat(currentSloveBalance.toFixed(2)),
+        totalLevelingMinutes
     };
 }
 
@@ -362,6 +595,7 @@ const resultLevelsGained = document.getElementById('result-levels-gained');
 const resultHuntsLeveling = document.getElementById('result-hunts-leveling');
 const resultGrossSlove = document.getElementById('result-gross-slove');
 const resultSloveSpent = document.getElementById('result-slove-spent');
+const resultSeedSpent = document.getElementById('result-seed-spent');
 const resultNetSlove = document.getElementById('result-net-slove');
 const resultLevelingError = document.getElementById('result-leveling-error');
 const resultEnduranceHunt = document.getElementById('result-endurance-hunt');
@@ -392,7 +626,12 @@ function getFormData() {
         currentEdurance: parseInt(currentEduranceInput.value, 10),
         currentTotalProficiency: parseInt(currentProficiencyInput.value, 10),
         currentTotalRecovery: parseInt(currentRecoveryInput.value, 10),
-        energyPerAction: parseInt(energyPerActionInput.value, 10)
+        energyPerAction: parseInt(energyPerActionInput.value, 10),
+        leaderLevel: parseInt(document.getElementById('leader-level').value, 10),
+        leaderProficiency: parseInt(document.getElementById('leader-proficiency').value, 10),
+        leaderRecovery: parseInt(document.getElementById('leader-recovery').value, 10),
+        leaderClass: document.getElementById('leader-class').value,
+        leaderType: document.getElementById('leader-type').value
     };
 }
 
@@ -411,7 +650,6 @@ function renderResults(result, initialData, targetAge) {
         resultRecovery.textContent = result.optimalDistributionToAdd?.recoveryBonusToAdd ?? 'N/A';
         resultFinalProficiency.textContent = result.finalStats?.totalProficiency ?? 'N/A';
         resultFinalRecovery.textContent = result.finalStats?.totalRecovery ?? 'N/A';
-        // Leveling Simulation
         if (result.levelingSimulation?.error) {
             resultLevelingError.textContent = result.levelingSimulation.error;
             resultLevelingError.style.display = '';
@@ -419,6 +657,7 @@ function renderResults(result, initialData, targetAge) {
             resultHuntsLeveling.textContent = '';
             resultGrossSlove.textContent = '';
             resultSloveSpent.textContent = '';
+            resultSeedSpent.textContent = '';
             resultNetSlove.textContent = '';
         } else if (result.levelingSimulation) {
             resultLevelingError.style.display = 'none';
@@ -426,18 +665,44 @@ function renderResults(result, initialData, targetAge) {
             resultHuntsLeveling.textContent = result.levelingSimulation.totalHuntsToReachMaxLevel;
             resultGrossSlove.textContent = result.levelingSimulation.totalGrossBaseSloveEarnedDuringLeveling;
             resultSloveSpent.textContent = result.levelingSimulation.totalSloveSpentOnLeveling;
+            resultSeedSpent.textContent = result.levelingSimulation.totalSeedSpentOnLeveling;
             resultNetSlove.textContent = result.levelingSimulation.netSloveAfterLevelingCosts;
+            let timeRow = document.getElementById('result-time-levelup');
+            if (!timeRow) {
+                const dt = document.createElement('dt');
+                dt.textContent = 'Time to Level Up';
+                const dd = document.createElement('dd');
+                dd.id = 'result-time-levelup';
+                dt.className = 'important';
+                dd.className = 'important';
+                resultNetSlove.parentNode.insertBefore(dd, resultNetSlove.nextSibling);
+                resultNetSlove.parentNode.insertBefore(dt, dd);
+                timeRow = dd;
+            }
+            timeRow.textContent = result.timeToLevelUp;
         } else {
             resultLevelingError.textContent = 'Leveling simulation data not available.';
             resultLevelingError.style.display = '';
         }
-        // Earnings Outcome
         if (result.earningsOutcome) {
             resultEnduranceHunt.textContent = result.earningsOutcome.enduranceConsumedPerHuntAction;
             resultHuntsTargetAge.textContent = result.earningsOutcome.huntsToReachTargetAge;
             resultBaseSloveHunt.textContent = result.earningsOutcome.baseSlovePerHuntActionAtMaxLevel;
             resultMaxTotalSlove.textContent = result.earningsOutcome.maxTotalBaseSloveEarnedByTargetAge;
             resultRecoveryCost.textContent = result.earningsOutcome.slovRecoveryCostPerHuntActionAtMaxLevel + ' SLOV';
+            let timeAgeRow = document.getElementById('result-time-targetage');
+            if (!timeAgeRow) {
+                const dt = document.createElement('dt');
+                dt.textContent = 'Time to Target Age';
+                const dd = document.createElement('dd');
+                dd.id = 'result-time-targetage';
+                dt.className = 'important';
+                dd.className = 'important';
+                resultRecoveryCost.parentNode.insertBefore(dd, resultRecoveryCost.nextSibling);
+                resultRecoveryCost.parentNode.insertBefore(dt, dd);
+                timeAgeRow = dd;
+            }
+            timeAgeRow.textContent = result.timeToTargetAge;
         } else {
             resultEnduranceHunt.textContent = '';
             resultHuntsTargetAge.textContent = '';
@@ -445,14 +710,12 @@ function renderResults(result, initialData, targetAge) {
             resultMaxTotalSlove.textContent = '';
             resultRecoveryCost.textContent = '';
         }
-        // Single Hunt Earnings
         if (initialData.currentAge === targetAge && result.yearlyBreakdown && result.yearlyBreakdown[0]) {
             resultSingleHuntSection.style.display = '';
             resultSingleHunt.textContent = result.yearlyBreakdown[0].slovePerHunt ?? 'N/A';
         } else {
             resultSingleHuntSection.style.display = 'none';
         }
-        // SLOV Earnings by Age Table
         if (result.yearlyBreakdown && result.yearlyBreakdown.length > 0) {
             const table = document.createElement('table');
             table.className = 'earnings-table';
@@ -470,6 +733,21 @@ function renderResults(result, initialData, targetAge) {
             resultsTableContainer.appendChild(table);
         } else {
             resultsTableContainer.innerHTML = '<p>Year-by-year earnings data not available.</p>';
+        }
+        if (result && result.scenarioResults) {
+            let scenarioHtml = '<h3>Leveling Scenarios</h3>';
+            scenarioHtml += '<table class="earnings-table"><thead><tr><th>Scenario</th><th>Hunts</th><th>Gross SLOV</th><th>SLOV Spent</th><th>SEED Spent</th><th>Net SLOV</th><th>Time to Level Up</th></tr></thead><tbody>';
+            const scenarios = [
+                { key: 'leader', label: 'Leader (No Hunt During Level Up)' },
+                { key: 'bulk', label: 'Non-Leader (Bulk Level Up After Hunt)' },
+                { key: 'alternate', label: 'Non-Leader (Alternate Level Up & Hunt)' }
+            ];
+            for (const s of scenarios) {
+                const r = result.scenarioResults[s.key];
+                scenarioHtml += `<tr><td>${s.label}</td><td>${r.totalHuntsToReachMaxLevel ?? 'N/A'}</td><td>${r.totalGrossBaseSloveEarnedDuringLeveling ?? 'N/A'}</td><td>${r.totalSloveSpentOnLeveling ?? 'N/A'}</td><td>${r.totalSeedSpentOnLeveling ?? 'N/A'}</td><td>${r.netSloveAfterLevelingCosts ?? 'N/A'}</td><td>${formatTimeDH(r.totalLevelingMinutes ?? 0)}</td></tr>`;
+            }
+            scenarioHtml += '</tbody></table>';
+            resultsSummary.innerHTML += scenarioHtml;
         }
     } else {
         resultsPlaceholder.style.display = '';
