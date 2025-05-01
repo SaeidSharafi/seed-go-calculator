@@ -84,7 +84,7 @@ function calculateSlovRecoveryCostPerHuntAction(enduranceConsumedThisHunt, rarit
 function findOptimalDistributionAndSimulate(initialData, targetAge = 7) {
     // Make sure errors are returned as objects for consistent handling
     const {
-        rarityName, className, currentLevel, maxLevel,
+        rarityName, className, currentLevel, maxLevel,currentAge,currentEdurance,
         currentTotalProficiency, currentTotalRecovery, energyPerAction
     } = initialData;
 
@@ -106,12 +106,9 @@ function findOptimalDistributionAndSimulate(initialData, targetAge = 7) {
     let bestAllocation = { proficiencyBonusToAdd: -1, recoveryBonusToAdd: -1 };
     let maxTotalBaseSloveEarnedForTargetAge = -1; // Track max *base* slove
     let bestOutcome = null;
+    let bestYearlyBreakdown = []; // Array to store earnings by year
 
-    const totalEnduranceForTargetAge = targetAge * 100;
-
-    // console.log(`Calculating for ${rarityName} ${className}, Lv ${currentLevel} -> ${maxLevel}, Target Age: ${targetAge}, Energy/Hunt: ${energyPerAction}`);
-    // console.log(`Bonus Points to distribute: ${remainingBonusPointsToAllocate}`);
-    // console.log(`Starting Stats: Prof=${currentTotalProficiency}, Rec=${currentTotalRecovery}`);
+    const totalEnduranceForTargetAge = ((targetAge - currentAge) * 100) - currentEdurance;
 
     // --- Optimization Loop ---
     for (let profBonusToAdd = 0; profBonusToAdd <= remainingBonusPointsToAllocate; profBonusToAdd++) {
@@ -137,20 +134,123 @@ function findOptimalDistributionAndSimulate(initialData, targetAge = 7) {
         );
 
         let currentTotalBaseSloveEarnedThisAllocation = 0;
-        let cumulativeEnduranceConsumed = 0;
+        let cumulativeEnduranceConsumed = currentEdurance;
+        let yearlyBreakdown = []; // Track earnings for each year with this allocation
+        let currentYearEndurance = 0;
+        let currentYearEarnings = 0;
+        let currentSimYear = currentAge;
+        let simulatedLevel = currentLevel; // Track level progression
 
-        for (let hunt = 0; hunt < huntsNeededForAge; hunt++) {
-            const currentYear = Math.floor(cumulativeEnduranceConsumed / 100);
-            const reductionPercent = getFibonacciReductionPercent(currentYear);
+        // Handle special case where target age equals current age
+        if (targetAge === currentAge) {
+            const baseSlovePerHunt = baseSlovePerHuntActionAtMax;
+            const reductionPercent = getFibonacciReductionPercent(currentAge);
             const earningMultiplier = 1 - (reductionPercent / 100);
-            currentTotalBaseSloveEarnedThisAllocation += baseSlovePerHuntActionAtMax * earningMultiplier;
-            cumulativeEnduranceConsumed += enduranceConsumedPerHuntAction;
+            const slovePerHunt = baseSlovePerHunt * earningMultiplier;
+
+            yearlyBreakdown.push({
+                age: currentAge,
+                level: maxLevel,
+                slovePerHunt: parseFloat(slovePerHunt.toFixed(2)),
+                endurancePerHunt: enduranceConsumedPerHuntAction,
+                huntsInYear: 1,
+                totalSloveInYear: parseFloat(slovePerHunt.toFixed(2))
+            });
+        } else {
+            // Simulation for multiple years
+            let currentSloveBalance = 0; // Track SLOVE balance during simulation
+            let nextLevelCost = getSloveLevelUpCost(simulatedLevel + 1); // Cost for next level up
+            
+            for (let hunt = 0; hunt < huntsNeededForAge; hunt++) {
+                // Determine the current year
+                const currentYear = Math.floor(cumulativeEnduranceConsumed / 100) + currentAge;
+
+                // Get reduction for current year
+                const reductionPercent = getFibonacciReductionPercent(currentYear);
+                const earningMultiplier = 1 - (reductionPercent / 100);
+                
+                // Calculate current stats based on current level
+                const bonusPointsForSimLevel = simulatedLevel * rarityInfo.bonusPts;
+                const bonusPointsAddedSoFar = Math.max(0, bonusPointsForSimLevel - bonusPointsAlreadySpent);
+                let simCurrentProfBonus = 0;
+                let simCurrentRecBonus = 0;
+                
+                if (remainingBonusPointsToAllocate > 0) {
+                    simCurrentProfBonus = bonusPointsAddedSoFar * (profBonusToAdd / remainingBonusPointsToAllocate);
+                    simCurrentRecBonus = bonusPointsAddedSoFar * (recBonusToAdd / remainingBonusPointsToAllocate);
+                }
+                
+                const simProficiency = currentTotalProficiency + simCurrentProfBonus;
+                const simRecovery = currentTotalRecovery + simCurrentRecBonus;
+                
+                // Calculate earnings with current stats
+                const currentBaseSlove = calculateBaseSlovePerHuntAction(
+                    simProficiency, className, energyPerAction
+                );
+                const sloveEarned = currentBaseSlove * earningMultiplier;
+                
+                // Add earnings
+                currentSloveBalance += sloveEarned;
+                currentTotalBaseSloveEarnedThisAllocation += sloveEarned;
+                currentYearEarnings += sloveEarned;
+                
+                // Track endurance
+                currentYearEndurance += enduranceConsumedPerHuntAction;
+                cumulativeEnduranceConsumed += enduranceConsumedPerHuntAction;
+                
+                // Check if we can level up
+                while (simulatedLevel < maxLevel && currentSloveBalance >= nextLevelCost) {
+                    // Apply level up
+                    currentSloveBalance -= nextLevelCost;
+                    simulatedLevel++;
+                    
+                    // Update next level cost
+                    if (simulatedLevel < maxLevel) {
+                        nextLevelCost = getSloveLevelUpCost(simulatedLevel + 1);
+                    }
+                }
+
+                // Check if we just crossed a year boundary after adding endurance
+                const nextYear = Math.floor(cumulativeEnduranceConsumed / 100) + currentAge;
+                
+                // If we've moved to a new year, save completed year's data
+                if (nextYear > currentSimYear) {
+                    yearlyBreakdown.push({
+                        age: currentSimYear,
+                        level: simulatedLevel,
+                        slovePerHunt: parseFloat((currentYearEarnings / (currentYearEndurance / enduranceConsumedPerHuntAction)).toFixed(2)),
+                        endurancePerHunt: enduranceConsumedPerHuntAction,
+                        huntsInYear: Math.floor(currentYearEndurance / enduranceConsumedPerHuntAction),
+                        totalSloveInYear: parseFloat(currentYearEarnings.toFixed(2)),
+                        sloveBalance: parseFloat(currentSloveBalance.toFixed(2)) // Track remaining SLOVE balance
+                    });
+                    
+                    // Reset for new year
+                    currentYearEndurance = 0;
+                    currentYearEarnings = 0;
+                    currentSimYear = nextYear;
+                }
+            }
+            
+            // Add data for the final partial year if any
+            if (currentYearEndurance > 0) {
+                yearlyBreakdown.push({
+                    age: currentSimYear,
+                    level: simulatedLevel,
+                    slovePerHunt: parseFloat((currentYearEarnings / (currentYearEndurance / enduranceConsumedPerHuntAction)).toFixed(2)),
+                    endurancePerHunt: enduranceConsumedPerHuntAction,
+                    huntsInYear: Math.ceil(currentYearEndurance / enduranceConsumedPerHuntAction),
+                    totalSloveInYear: parseFloat(currentYearEarnings.toFixed(2)),
+                    sloveBalance: parseFloat(currentSloveBalance.toFixed(2))
+                });
+            }
         }
 
         // --- Compare ---
         if (currentTotalBaseSloveEarnedThisAllocation > maxTotalBaseSloveEarnedForTargetAge) {
             maxTotalBaseSloveEarnedForTargetAge = currentTotalBaseSloveEarnedThisAllocation;
             bestAllocation = { proficiencyBonusToAdd: profBonusToAdd, recoveryBonusToAdd: recBonusToAdd };
+            bestYearlyBreakdown = yearlyBreakdown;
 
             bestOutcome = {
                  finalStats: {
@@ -196,14 +296,15 @@ function findOptimalDistributionAndSimulate(initialData, targetAge = 7) {
         optimalDistributionToAdd: bestAllocation,
         finalStats: bestOutcome.finalStats,
         levelingSimulation: levelingSimResults, // Full leveling results object
-        earningsOutcome: bestOutcome.agingOutcome
+        earningsOutcome: bestOutcome.agingOutcome,
+        yearlyBreakdown: bestYearlyBreakdown // Add the yearly breakdown
     };
 }
 
 // --- Leveling Simulation (Corrected based on Base SLOV earnings) ---
 function simulateLevelingProcessWithCorrectedFormulas(initialData, optimalDistributionToAdd) {
      const {
-        rarityName, className, currentLevel, maxLevel,
+        rarityName, className, currentLevel, maxLevel, currentAge, currentEdurance,
         currentTotalProficiency, currentTotalRecovery, energyPerAction
     } = initialData;
     const { proficiencyBonusToAdd, recoveryBonusToAdd } = optimalDistributionToAdd;
@@ -218,7 +319,7 @@ function simulateLevelingProcessWithCorrectedFormulas(initialData, optimalDistri
     let totalHuntsPerformedThisSim = 0;
     let totalGrossBaseSloveEarnedDuringLeveling = 0;
     let totalSloveSpentOnLeveling = 0;
-    let totalEnduranceConsumedThisSim = 0;
+    let totalEnduranceConsumedThisSim = currentEdurance;
 
     // If already at max level, no simulation needed
     if (simulationCurrentLevel >= maxLevel) {
@@ -273,7 +374,7 @@ function simulateLevelingProcessWithCorrectedFormulas(initialData, optimalDistri
             const maxHuntsPerLevel = 1000000; // Increased limit further
 
             while(accumulatedSloveThisLevel < slovNeededForNextLevel) {
-                 const currentSimYear = Math.floor(totalEnduranceConsumedThisSim / 100);
+                 const currentSimYear = Math.floor(totalEnduranceConsumedThisSim / 100) + currentAge;
                  const reductionPercent = getFibonacciReductionPercent(currentSimYear);
                  const earningMultiplier = Math.max(0, 1 - (reductionPercent / 100)); // Ensure multiplier doesn't go negative
 
@@ -320,6 +421,8 @@ const form = document.getElementById('calculator-form');
 const raritySelect = document.getElementById('rarity');
 const classSelect = document.getElementById('class');
 const currentLevelInput = document.getElementById('current-level');
+const currentAgeInput = document.getElementById('current-age');
+const currentEduranceInput = document.getElementById('current-edurance');
 const maxLevelInput = document.getElementById('max-level');
 const currentProficiencyInput = document.getElementById('current-proficiency');
 const currentRecoveryInput = document.getElementById('current-recovery');
@@ -341,6 +444,8 @@ calculateButton.addEventListener('click', () => {
             className: classSelect.value,
             currentLevel: parseInt(currentLevelInput.value, 10),
             maxLevel: parseInt(maxLevelInput.value, 10),
+            currentAge: parseInt(currentAgeInput.value, 10),
+            currentEdurance: parseInt(currentEduranceInput.value, 10),
             currentTotalProficiency: parseInt(currentProficiencyInput.value, 10),
             currentTotalRecovery: parseInt(currentRecoveryInput.value, 10),
             energyPerAction: parseInt(energyPerActionInput.value, 10) // Ensure name matches function expectation
@@ -348,6 +453,9 @@ calculateButton.addEventListener('click', () => {
         const targetAge = parseInt(targetAgeInput.value, 10);
 
         // --- Basic Client-Side Validation (can be more robust) ---
+        if (initialData.currentAge > targetAge) {
+            throw new Error(`Target Age (${targetAge}) cannot be less than Current <Age></Age> (${initialData.currentAge}).`);
+        }
          if (initialData.maxLevel < initialData.currentLevel) {
              throw new Error(`Target Level (${initialData.maxLevel}) cannot be less than Current Level (${initialData.currentLevel}).`);
          }
@@ -373,7 +481,7 @@ calculateButton.addEventListener('click', () => {
         } else if (result) {
             // Format the successful result object into a readable string
             let output = `<h2>Calculation Results</h2>`;
-            output += `<p class="success-summary">Optimal distribution found for ${result.rarity} ${result.class} (Lv ${result.startLevel} -> ${result.targetLevel}, Target Age: ${targetAge}).</p>`;
+            output += `<p class="success-summary">Optimal distribution found for ${result.rarity} ${result.class} (Lv ${result.startLevel} -> ${result.targetLevel}, Age ${initialData.currentAge} -> ${targetAge}).</p>`;
 
             output += `<strong>Optimal Bonus Points to Add:</strong>\n`;
             output += `  Proficiency: +${result.optimalDistributionToAdd?.proficiencyBonusToAdd ?? 'N/A'}\n`;
@@ -397,19 +505,45 @@ calculateButton.addEventListener('click', () => {
             }
 
             output += `<strong>Earnings Outcome (Optimal Build, Up to Age ${targetAge}):</strong>\n`;
-             if (result.earningsOutcome) {
+            if (result.earningsOutcome) {
                 output += `  Endurance/Hunt (at Lv ${result.targetLevel}): ${result.earningsOutcome.enduranceConsumedPerHuntAction}\n`;
                 output += `  Hunts to Reach Age ${targetAge}: ${result.earningsOutcome.huntsToReachTargetAge}\n`;
                 output += `  BASE SLOV/Hunt (Lv ${result.targetLevel}, Year 0): ${result.earningsOutcome.baseSlovePerHuntActionAtMaxLevel}\n`;
                 output += `  Max Total BASE SLOV by Age ${targetAge} (Gross, Reduced): ${result.earningsOutcome.maxTotalBaseSloveEarnedByTargetAge}\n`;
-                output += `  (Info) Recovery Cost/Hunt (Lv ${result.targetLevel}): ${result.earningsOutcome.slovRecoveryCostPerHuntActionAtMaxLevel} SLOV\n`;
-             } else {
-                  output += `  Earnings outcome data not available.\n`;
-             }
-
-            resultsArea.innerHTML = output; // Use innerHTML to render line breaks from \n within <pre> or use <p> tags
-             resultsArea.className = ''; // Remove error class if it was there
-
+                output += `  (Info) Recovery Cost/Hunt (Lv ${result.targetLevel}): ${result.earningsOutcome.slovRecoveryCostPerHuntActionAtMaxLevel} SLOV\n\n`;
+                
+                // Special case when target age equals current age
+                if (initialData.currentAge === targetAge) {
+                    output += `<strong>Single Hunt Earnings at Age ${targetAge} and Level ${result.targetLevel}:</strong>\n`;
+                    output += `  SLOV Earned: ${result.yearlyBreakdown[0]?.slovePerHunt ?? 'N/A'} SLOV\n\n`;
+                }
+                
+                // Add year-by-year breakdown
+                output += `<strong>SLOV Earnings by Age (with Aging Reduction):</strong>\n`;
+                if (result.yearlyBreakdown && result.yearlyBreakdown.length > 0) {
+                    output += `<table class="earnings-table">`;
+                    output += `<tr><th>Age</th><th>Level</th><th>SLOV/Hunt</th><th>Hunts</th><th>Total SLOV</th><th>Balance</th></tr>`;
+                    
+                    result.yearlyBreakdown.forEach(year => {
+                        output += `<tr>
+                            <td>Year ${year.age}</td>
+                            <td>Lv ${year.level}</td>
+                            <td>${year.slovePerHunt}</td>
+                            <td>${year.huntsInYear}</td>
+                            <td>${year.totalSloveInYear}</td>
+                            <td>${year.sloveBalance || 0}</td>
+                        </tr>`;
+                    });
+                    output += `</table>`;
+                } else {
+                    output += `  Year-by-year earnings data not available.\n`;
+                }
+            } else {
+                output += `  Earnings outcome data not available.\n`;
+            }
+            
+            resultsArea.innerHTML = output;
+            resultsArea.className = '';
         } else {
              resultsArea.innerHTML = `<p class="error">An unknown error occurred. Calculation failed.</p>`;
              resultsArea.classList.add('error');
