@@ -23,6 +23,7 @@ const currentProficiencyInput = document.getElementById('current-proficiency');
 const currentRecoveryInput = document.getElementById('current-recovery');
 const energyPerHuntInput = document.getElementById('energy-per-action');
 const targetAgeInput = document.getElementById('target-age');
+const sloveBalance = document.getElementById('slove-balance');
 const calculateButton = document.getElementById('calculate-button');
 const resultsArea = document.getElementById('results-area');
 
@@ -79,10 +80,14 @@ function clearResults() {
     resultsError.style.display = 'none';
     resultsPlaceholder.style.display = '';
     resultsTableContainer.innerHTML = '';
+    
     if (scenarioLogContainerEl) scenarioLogContainerEl.innerHTML = '';
     if (scenarioLogContainerEl) scenarioLogContainerEl.style.display = 'none';
 
     // --- Corrected Removal of Dynamic Time Rows ---
+    
+    document.querySelectorAll('.scenario-summary').forEach(e => e.remove());
+
     const timeLevelUpDD = document.getElementById('result-time-levelup');
     if (timeLevelUpDD) {
         const timeLevelUpDT = timeLevelUpDD.previousElementSibling;
@@ -108,6 +113,7 @@ function getFormData() {
         currentTotalProficiency: parseInt(currentProficiencyInput.value, 10),
         currentTotalRecovery: parseInt(currentRecoveryInput.value, 10),
         energyPerHunt: parseInt(energyPerHuntInput.value, 10),
+        sloveBalance: parseInt(sloveBalance.value, 10),
         leaderLevel: parseInt(document.getElementById('leader-level').value, 10),
         leaderProficiency: parseInt(document.getElementById('leader-proficiency').value, 10),
         leaderRecovery: parseInt(document.getElementById('leader-recovery').value, 10),
@@ -152,6 +158,7 @@ function renderActionLog(actionLog, containerElement) {
                 actionText = `Unknown Action: ${JSON.stringify(action)}`;
                 break;
         }
+        actionText += action.msg ? ` (${action.msg})` : ''; // Append any additional message
         logHtml += `<li>${actionText} <span class="timestamp">${timeText}</span></li>`;
     });
 
@@ -251,7 +258,7 @@ function renderResults(result, initialData, targetAge) {
         if (result.scenarioResults) {
             // 1. Build Summary Table
             scenarioSummaryHtml = `
-                <div class="results-section">
+                <div class="results-section scenario-summary">
                     <h3>Leveling Scenario Summary</h3>
                     <table class="earnings-table scenario-summary-table">
                         <thead>

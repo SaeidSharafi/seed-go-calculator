@@ -26,27 +26,44 @@ function getSimStatsForLevel(initialData, rarityInfo, optimalDistributionToAdd, 
     const { currentLevel, currentTotalProficiency, currentTotalRecovery, maxLevel } = initialData;
     const { proficiencyBonusToAdd, recoveryBonusToAdd } = optimalDistributionToAdd;
 
-    const bonusPointsAlreadySpent = currentLevel * rarityInfo.bonusPts;
-    const totalBonusPointsAtMaxLevel = maxLevel * rarityInfo.bonusPts;
-    const remainingBonusPointsToAllocate = Math.max(0, totalBonusPointsAtMaxLevel - bonusPointsAlreadySpent);
+    const pointsPerLevel = rarityInfo.bonusPts;
 
-    const bonusPointsForSimLevel = simulatedLevel * rarityInfo.bonusPts;
-    const bonusPointsAddedSoFar = Math.max(0, bonusPointsForSimLevel - bonusPointsAlreadySpent);
-
-    let simCurrentProfBonus = 0;
-    let simCurrentRecBonus = 0;
-
-    if (remainingBonusPointsToAllocate > 0 && bonusPointsAddedSoFar > 0) {
-        const totalPointsToAddRatioDenom = proficiencyBonusToAdd + recoveryBonusToAdd;
-        if (totalPointsToAddRatioDenom > 0) {
-            simCurrentProfBonus = bonusPointsAddedSoFar * (proficiencyBonusToAdd / totalPointsToAddRatioDenom);
-            simCurrentRecBonus = Math.max(0, bonusPointsAddedSoFar - simCurrentProfBonus);
-        }
+    if (pointsPerLevel <= 0) { 
+        return { simProficiency: currentTotalProficiency, simRecovery: currentTotalRecovery };
     }
 
+    const levelsGained = Math.max(0, simulatedLevel - currentLevel);
+
+    const totalBonusPointsEarned = levelsGained * pointsPerLevel;
+
+    const totalPointsToAllocate = proficiencyBonusToAdd + recoveryBonusToAdd;
+    const profRatio = (totalPointsToAllocate > 0) ? proficiencyBonusToAdd / totalPointsToAllocate : 0;
+
+    const idealProfPoints = totalBonusPointsEarned * profRatio;
+
+    let addedProfPoints = Math.round(idealProfPoints);
+
+    addedProfPoints = Math.min(totalBonusPointsEarned, addedProfPoints);
+    addedProfPoints = Math.max(0, addedProfPoints); // Ensure non-negative
+
+    let addedRecPoints = totalBonusPointsEarned - addedProfPoints;
+
+    // --- Sanity Check 
+    if (addedProfPoints + addedRecPoints !== totalBonusPointsEarned) {
+        console.warn(`Point allocation mismatch at level ${simulatedLevel}: Earned=${totalBonusPointsEarned}, Added P=${addedProfPoints}, Added R=${addedRecPoints}`);
+        addedRecPoints = totalBonusPointsEarned - addedProfPoints;
+    }
+    // --- End Sanity Check ---
+
+
+    // Add the allocated integer points to the initial stats
+    const finalSimProficiency = currentTotalProficiency + addedProfPoints;
+    const finalSimRecovery = currentTotalRecovery + addedRecPoints;
+
+
     return {
-        simProficiency: currentTotalProficiency + simCurrentProfBonus,
-        simRecovery: currentTotalRecovery + simCurrentRecBonus
+        simProficiency: finalSimProficiency,
+        simRecovery: finalSimRecovery
     };
 }
 /**
@@ -96,7 +113,9 @@ export function simulateLevelingProcess(initialData, optimalDistributionToAdd, s
 
     // --- Simulation State Initialization ---
     let simulationCurrentLevel = currentLevel;
-    let currentSloveBalance = 0;
+    let currentSloveBalance = initialData.sloveBalance || 0;
+    console.log(currentSloveBalance);
+    
     let totalEnduranceConsumed = currentEdurance;
     let currentEnergy = energyPerHunt;
     let levelUpTimeRemainingMinutes = 0;
@@ -256,7 +275,7 @@ export function simulateLevelingProcess(initialData, optimalDistributionToAdd, s
 
                     currentTotalTimeMinutes += huntDurationMinutes; currentEnergy = 0; // Add hunt time, consume energy
 
-                    actionLog.push({ type: 'HUNT', level: simulationCurrentLevel, sloveEarned: parseFloat(sloveEarnedThisHunt.toFixed(2)), enduCost: parseFloat(enduranceCost.toFixed(4)), currentTotalTimeMin: Math.round(currentTotalTimeMinutes) });
+                    actionLog.push({ type: 'HUNT', level: simulationCurrentLevel, sloveEarned: parseFloat(sloveEarnedThisHunt.toFixed(2)), enduCost: parseFloat(enduranceCost.toFixed(4)), currentTotalTimeMin: Math.round(currentTotalTimeMinutes), msg: `${simProficiency},${simRecovery}` });
                     currentSloveBalance += sloveEarnedThisHunt; totalEnduranceConsumed += enduranceCost; actionLogged = true;
                 }
             } // End Leader Action
