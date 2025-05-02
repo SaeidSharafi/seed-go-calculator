@@ -26,10 +26,10 @@
           <div class="form-group">
             <label for="class">Class:</label>
             <select id="class" required>
-              <option value="Aqua">Aqua</option>
+              <option value="Aqua" selected>Aqua</option>
               <option value="Reptile">Reptile</option>
               <option value="Beast">Beast</option>
-              <option value="Plant" selected>Plant</option>
+              <option value="Plant">Plant</option>
               <option value="Bird">Bird</option>
               <option value="Ghost">Ghost</option>
             </select>
@@ -80,7 +80,7 @@
               type="number"
               id="current-edurance"
               value="0"
-              min="99"
+              max="99"
               step="1"
               required
             />
@@ -91,7 +91,7 @@
             <input
               type="number"
               id="current-proficiency"
-              value="8"
+              value="12"
               min="0"
               step="1"
               required
@@ -102,7 +102,7 @@
             <input
               type="number"
               id="current-recovery"
-              value="8"
+              value="18"
               min="0"
               step="1"
               required
@@ -145,7 +145,7 @@
               <label for="leader-type">Leader Rarity:</label>
               <select id="leader-type" required>
                 <option value="Common">Common</option>
-                <option value="Uncommon">Uncommon</option>
+                <option value="Uncommon" selected>Uncommon</option>
                 <option value="Rare">Rare</option>
                 <option value="Epic">Epic</option>
                 <option value="Legendary">Legendary</option>
@@ -157,7 +157,7 @@
                 <option value="Aqua">Aqua</option>
                 <option value="Reptile">Reptile</option>
                 <option value="Beast">Beast</option>
-                <option value="Plant">Plant</option>
+                <option value="Plant" selected>Plant</option>
                 <option value="Bird">Bird</option>
                 <option value="Ghost">Ghost</option>
               </select>
@@ -167,7 +167,7 @@
               <input
                 type="number"
                 id="leader-level"
-                value="1"
+                value="7"
                 min="0"
                 max="30"
                 step="1"
@@ -179,7 +179,7 @@
               <input
                 type="number"
                 id="leader-proficiency"
-                value="8"
+                value="42"
                 min="0"
                 step="1"
                 required
@@ -190,7 +190,7 @@
               <input
                 type="number"
                 id="leader-recovery"
-                value="8"
+                value="26"
                 min="0"
                 step="1"
                 required
@@ -227,28 +227,6 @@
             </dl>
           </div>
           <div class="results-section">
-            <h3>Leveling Simulation</h3>
-            <dl class="results-dl">
-              <dt>Levels Gained</dt>
-              <dd id="result-levels-gained"></dd>
-              <dt>Hunts for Leveling</dt>
-              <dd id="result-hunts-leveling"></dd>
-              <dt>Gross BASE SLOV Earned</dt>
-              <dd id="result-gross-slove"></dd>
-              <dt>SLOV Spent on Levels</dt>
-              <dd id="result-slove-spent"></dd>
-              <dt>SEED Spent on Levels</dt>
-              <dd id="result-seed-spent"></dd>
-              <dt>Net SLOV After Leveling</dt>
-              <dd id="result-net-slove"></dd>
-              <dd
-                id="result-leveling-error"
-                class="error"
-                style="display: none"
-              ></dd>
-            </dl>
-          </div>
-          <div class="results-section">
             <h3>Earnings Outcome</h3>
             <dl class="results-dl">
               <dt>Endurance/Hunt</dt>
@@ -274,10 +252,10 @@
               <dd id="result-single-hunt"></dd>
             </dl>
           </div>
-          <div class="results-section">
-            <h3>SLOV Earnings by Age</h3>
-            <div id="results-table-container"></div>
-          </div>
+          <div id="results-table-container"></div>
+          <div id="scenario-log-container" style="display: none;">
+         </div>
+       </div>
         </div>
         <div id="results-error" class="error" style="display: none"></div>
         <div id="results-placeholder">
@@ -286,6 +264,6 @@
       </div>
     </div>
 
-    <script src="script.js"></script>
+    <script type="module" src="/js/main.js"></script>
   </body>
 </html>

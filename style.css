@@ -256,6 +256,56 @@ button:hover {
     background: #fff0f0;
     border: 1px solid #f5b2b2;
 }
+.action-log-list {
+    list-style-type: decimal; /* Use numbers */
+    padding-left: 25px;
+    margin-top: 5px;
+    font-size: 0.9em;
+    max-height: 400px; /* Limit height */
+    overflow-y: auto; /* Add scrollbar if needed */
+    border: 1px solid #eee;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    background-color: #fdfdfd;
+}
+
+.action-log-list li {
+    margin-bottom: 5px;
+    line-height: 1.4;
+}
+
+.action-log-list .timestamp {
+    color: #666;
+    font-size: 0.9em;
+    margin-left: 5px;
+}
+
+.action-log-list .boosted {
+    color: #28a745; /* Green for boost */
+    font-weight: bold;
+}
+
+.action-log-list .decision-note {
+    color: #007bff; /* Blue for decisions */
+    font-style: italic;
+    display: block; /* Make it stand out more */
+    margin-top: 3px;
+    margin-bottom: 3px;
+}
+
+.scenario-detail {
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px dashed #ccc;
+}
+.scenario-detail:last-child {
+    border-bottom: none;
+}
+
+.scenario-summary-table th,
+.scenario-summary-table td {
+     font-size: 0.9em; /* Make summary table slightly smaller */
+}
 
 /* Responsive for results card and table */
 @media (max-width: 700px) {
