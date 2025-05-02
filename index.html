@@ -255,6 +255,150 @@
           <div id="results-table-container"></div>
           <div id="scenario-log-container" style="display: none;">
          </div>
+         <div id="scenario-explanations" class="results-section">
+          <h3>Understanding the Leveling Scenarios</h3>
+          <p>
+            This simulation compares different strategies for reaching the target level
+            (<code>maxLevel</code>). Here's a breakdown of each scenario:
+          </p>
+        
+          <dl class="explanation-dl">
+            <dt>1. Leader Scenario</dt>
+            <dd>
+              <ul>
+                <li>
+                  <strong>Concept:</strong> Represents leveling up the monster
+                  <em>using only itself</em> for hunts. It cannot hunt while a level-up
+                  is in progress.
+                </li>
+                <li>
+                  <strong>Hunting:</strong> Uses the monster's <em>own stats</em>
+                  (Proficiency and Recovery) at its current simulated level. These stats
+                  improve as it levels up based on the optimal point distribution found
+                  earlier.
+                </li>
+                <li>
+                  <strong>Decision:</strong> At each step (when energy is full and not
+                  leveling), it checks if it has enough $SLOVE for the next level.
+                  <ul>
+                    <li>
+                      If YES: It starts the level-up process and waits for the required
+                      time (from Level Up Data).
+                    </li>
+                    <li>
+                      If NO: It performs a hunt, earns $SLOVE, and waits for energy to
+                      refill before the next decision.
+                    </li>
+                  </ul>
+                </li>
+                <li>
+                  <strong>Use Case:</strong> Simulates focusing solely on this one
+                  monster.
+                </li>
+              </ul>
+            </dd>
+        
+            <dt>2. Bulk Scenario (using External Leader)</dt>
+            <dd>
+              <ul>
+                <li>
+                  <strong>Concept:</strong> Represents using a
+                  <em>different, dedicated monster</em> (the "External Leader" defined
+                  by the Leader Stats inputs) to farm $SLOVE while the primary monster
+                  levels up. The primary monster doesn't hunt in this scenario. This strategy prioritizes
+                  leveling up as soon as funds are available.
+                </li>
+                <li>
+                  <strong>Hunting:</strong> Uses the <em>fixed stats</em> of the
+                  External Leader for all hunts.
+                </li>
+                <li>
+                  <strong>Decision:</strong> At each step (when energy is full and not
+                  leveling), it checks if it has enough $SLOVE for the next level(s).
+                  <ul>
+                    <li>
+                      If YES: It levels up (potentially multiple times if affordable),
+                      waiting the required time for <em>each</em> level gained. It
+                      does <em>not</em> hunt immediately after these level-ups.
+                    </li>
+                    <li>
+                      If NO (or after finishing all affordable level-ups): It performs a
+                      hunt using the External Leader to earn more $SLOVE.
+                    </li>
+                  </ul>
+                </li>
+                <li>
+                  <strong>Use Case:</strong> Simulates having a strong "farmer" monster
+                  provide funds, allowing the main monster to level rapidly whenever
+                  funds are available, minimizing its own activity.
+                </li>
+              </ul>
+            </dd>
+        
+            <dt>3. Alternate Scenario (using External Leader)</dt>
+            <dd>
+              <ul>
+                <li>
+                  <strong>Concept:</strong> Also uses the External Leader for farming,
+                  but adopts a strategy of immediately hunting after starting a
+                  level-up to maximize activity and income generation.
+                </li>
+                <li>
+                  <strong>Hunting:</strong> Uses the <em>fixed stats</em> of the
+                  External Leader for all hunts.
+                </li>
+                <li>
+                  <strong>Decision:</strong> At each step (when energy is full):
+                  <ul>
+                    <li>Checks if it has enough $SLOVE for the next level.</li>
+                    <li>
+                      If YES: It starts the level-up process (timer begins) AND
+                      <em>immediately</em> performs a hunt with the External Leader in
+                      the same step. Energy refills and the level-up timer run
+                      concurrently.
+                    </li>
+                    <li>
+                      If NO: It performs a hunt with the External Leader (provided no
+                      level-up timer is currently active from a previous step).
+                    </li>
+                  </ul>
+                </li>
+                <li>
+                  <strong>Use Case:</strong> Simulates aggressively using the External
+                  Leader for income, effectively multi-tasking leveling and hunting.
+                </li>
+              </ul>
+            </dd>
+          </dl>
+        
+          <h4>Boost Option</h4>
+          <ul>
+            <li>
+              For each scenario, a "(Boosted)" version is also simulated, indicated by
+              "Boost Used: Yes" in the summary table.
+            </li>
+            <li>
+              If boosting is enabled for a run, the simulation assumes you will spend
+              extra $SLOVE (from Boost data) to make each level-up
+              <strong>instant</strong>, skipping the time wait, whenever you have
+              enough $SLOVE for both the level cost <em>and</em> the boost cost.
+            </li>
+            <li>
+              The simulation may also choose to "Wait for Boost" - performing extra
+              hunts until boost is affordable if that's calculated to be faster than
+              waiting for the normal level-up time. These strategic decisions are noted
+              in the "Leveling Scenario Details" log for boosted runs.
+            </li>
+          </ul>
+        
+          <h4>Which scenario is best?</h4>
+          <p>
+            Compare the "Total Time" and "Net SLOV" columns in the summary table. The
+            "best" scenario depends on whether you prioritize speed (lowest time) or
+            $SLOVE efficiency (highest net $SLOVE). Using Boost generally reduces time
+            but costs significantly more $SLOVE.
+          </p>
+        </div>
        </div>
         </div>
         <div id="results-error" class="error" style="display: none"></div>
