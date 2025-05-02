@@ -273,8 +273,7 @@ function renderResults(result, initialData, targetAge) {
 
             const scenarios = [
                 { key: 'leader', label: 'Leader' }, { key: 'leaderBoosted', label: 'Leader' },
-                { key: 'bulk', label: 'Bulk' }, { key: 'bulkBoosted', label: 'Bulk' },
-                { key: 'alternate', label: 'Alternate' }, { key: 'alternateBoosted', label: 'Alternate' }
+                { key: 'nonLeader', label: 'non-Leader' }, { key: 'nonLeaderBoosted', label: 'non-Leader' }
             ];
 
             // 2. Build Detailed Logs (populate scenarioDetailedLogsHtml)

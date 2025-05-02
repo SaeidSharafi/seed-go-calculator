@@ -1,19 +1,40 @@
-import * as Utils from './utils.js'; 
+import * as Utils from './utils.js';
+
 
 export function simulateLevelingScenarios(initialData, bestAllocation) {
+    let fastestLeaderLevelingTime = null;
+    let fastestNonLeaderLevelingTime = null;
     const leaderResult = simulateLevelingProcess(initialData, bestAllocation, 'leader', false);
-    const leaderResultBoosted = simulateLevelingProcess(initialData, bestAllocation, 'leader', true);
+    const nonLeaderResult = simulateLevelingProcess(initialData, bestAllocation, 'nonLeader', false);
 
-    const bulkResult = simulateLevelingProcess(initialData, bestAllocation, 'bulk', false);
-    const bulkResultBoosted = simulateLevelingProcess(initialData, bestAllocation, 'bulk', true);
+    for (let i = 60; i <= 12000; i += 30) {
+        const leaderResultBoosted = simulateLevelingProcess(initialData, bestAllocation, 'leader', true, i);
+        const nonLeaderResultBoosted = simulateLevelingProcess(initialData, bestAllocation, 'nonLeader', true, i);
+        if (fastestLeaderLevelingTime === null
+            || leaderResultBoosted.totalLevelingMinutes < fastestLeaderLevelingTime.totalLevelingMinutes
+        ) {
+            fastestLeaderLevelingTime = leaderResultBoosted;
+        }
 
-    const alternateResult = simulateLevelingProcess(initialData, bestAllocation, 'alternate', false);
-    const alternateResultBoosted = simulateLevelingProcess(initialData, bestAllocation, 'alternate', true);
+        if (fastestNonLeaderLevelingTime === null
+            || nonLeaderResultBoosted.totalLevelingMinutes < fastestNonLeaderLevelingTime.totalLevelingMinutes
+        ) {
+            fastestNonLeaderLevelingTime = nonLeaderResultBoosted;
+        }
+    }
+
+
+    /**
+     * TO DO - Fix A* Search for Optimal Path
+     * WARNING: This can be very slow and memory-intensive.
+     * Uncomment the following lines to run the A* search.
+     */
+      //console.log(findOptimalLevelingPathAStar(initialData, bestAllocation, 'leader'));
+
 
     return {
-        leader: leaderResult, leaderBoosted: leaderResultBoosted,
-        bulk: bulkResult, bulkBoosted: bulkResultBoosted,
-        alternate: alternateResult, alternateBoosted: alternateResultBoosted
+        leader: leaderResult, leaderBoosted: fastestLeaderLevelingTime,
+        nonLeader: nonLeaderResult, nonLeaderBoosted: fastestNonLeaderLevelingTime
     }
 }
 
@@ -28,7 +49,7 @@ function getSimStatsForLevel(initialData, rarityInfo, optimalDistributionToAdd, 
 
     const pointsPerLevel = rarityInfo.bonusPts;
 
-    if (pointsPerLevel <= 0) { 
+    if (pointsPerLevel <= 0) {
         return { simProficiency: currentTotalProficiency, simRecovery: currentTotalRecovery };
     }
 
@@ -78,7 +99,7 @@ function estimateSlovPerHuntCycle(initialData, rarityInfo, optimalDistributionTo
         // Use monster's stats at the CURRENT level for estimation
         const { simProficiency } = getSimStatsForLevel(initialData, rarityInfo, optimalDistributionToAdd, simulationCurrentLevel);
         baseSlove = Utils.calculateBaseSlovePerHuntAction(simProficiency, className, energyPerHunt);
-    } else { // bulk or alternate
+    } else { // bulk or nonLeader
         baseSlove = externalLeaderBaseSlovePerHunt;
     }
 
@@ -92,7 +113,9 @@ function estimateSlovPerHuntCycle(initialData, rarityInfo, optimalDistributionTo
     return baseSlove * earningMultiplier;
 }
 
-export function simulateLevelingProcess(initialData, optimalDistributionToAdd, scenario = 'leader', useBoost = true) {
+// Only boost if normal level up takes > 12 hours
+
+export function simulateLevelingProcess(initialData, optimalDistributionToAdd, scenario = 'leader', useBoost = true, BOOST_WORTHINESS_THRESHOLD_MINUTES = 12 * 60) {
     const {
         rarityName, className, currentLevel, maxLevel, currentAge, currentEdurance,
         energyPerHunt,
@@ -109,13 +132,11 @@ export function simulateLevelingProcess(initialData, optimalDistributionToAdd, s
     const rarityInfo = Utils.findRarityInfo(rarityName);
     if (!rarityInfo) return { error: `Invalid Rarity Info for ${rarityName}` };
 
-    if ((scenario === 'bulk' || scenario === 'alternate')) { /* ... validation ... */ }
 
     // --- Simulation State Initialization ---
     let simulationCurrentLevel = currentLevel;
     let currentSloveBalance = initialData.sloveBalance || 0;
-    console.log(currentSloveBalance);
-    
+
     let totalEnduranceConsumed = currentEdurance;
     let currentEnergy = energyPerHunt;
     let levelUpTimeRemainingMinutes = 0;
@@ -132,11 +153,11 @@ export function simulateLevelingProcess(initialData, optimalDistributionToAdd, s
     let externalLeaderBaseSlovePerHunt = null;
     let externalLeaderEnduranceCost = null;
     let externalLeaderClassName = null;
-    if (scenario === 'bulk' || scenario === 'alternate') {
+    if (scenario === 'nonLeader') {
         externalLeaderClassName = initialData.leaderClass || className;
         externalLeaderBaseSlovePerHunt = Utils.calculateBaseSlovePerHuntAction(initialData.leaderProficiency, externalLeaderClassName, energyPerHunt);
         externalLeaderEnduranceCost = Utils.calculateEnduranceConsumedPerHuntAction(initialData.leaderRecovery, energyPerHunt);
-         if (!isFinite(externalLeaderEnduranceCost) || externalLeaderEnduranceCost <= 0) return { error: `Invalid endurance cost (${externalLeaderEnduranceCost}) calculated for external leader.` };
+        if (!isFinite(externalLeaderEnduranceCost) || externalLeaderEnduranceCost <= 0) return { error: `Invalid endurance cost (${externalLeaderEnduranceCost}) calculated for external leader.` };
     }
 
     // --- Main Simulation Loop ---
@@ -151,48 +172,48 @@ export function simulateLevelingProcess(initialData, optimalDistributionToAdd, s
             waitReason = `Finishing Level Up (to Lv ${simulationCurrentLevel + 1})`; // More descriptive reason
         }
 
-        const canRefillWhileLeveling = scenario === 'alternate';
+        const canRefillWhileLeveling = scenario === 'nonLeader';
         if (currentEnergy < energyPerHunt && (levelUpTimeRemainingMinutes === 0 || canRefillWhileLeveling)) {
-             const timeToFullEnergy = (energyPerHunt - currentEnergy) * singleEnergyRefillMinutes;
-             if(timeToFullEnergy < timeToWaitMinutes) {
-                 timeToWaitMinutes = timeToFullEnergy;
-                 waitReason = "Energy Refill";
-             }
+            const timeToFullEnergy = (energyPerHunt - currentEnergy) * singleEnergyRefillMinutes;
+            if (timeToFullEnergy < timeToWaitMinutes) {
+                timeToWaitMinutes = timeToFullEnergy;
+                waitReason = "Energy Refill";
+            }
         }
 
         if (timeToWaitMinutes === Infinity) {
-             if(currentEnergy === energyPerHunt && levelUpTimeRemainingMinutes === 0) {
-                 timeToWaitMinutes = 0; // Can act now
-                 waitReason = "Ready for Action";
-             } else {
-                  console.error(`SIM ERROR (Log): Stuck! Lvl=${simulationCurrentLevel}, E=${currentEnergy}, LvlT=${levelUpTimeRemainingMinutes}, Boost=${useBoost}. Scenario=${scenario}. Inputs:`, initialData);
-                  return { error: `Simulation logic error (Log): Cannot determine time to wait at level ${simulationCurrentLevel}.` };
-             }
+            if (currentEnergy === energyPerHunt && levelUpTimeRemainingMinutes === 0) {
+                timeToWaitMinutes = 0; // Can act now
+                waitReason = "Ready for Action";
+            } else {
+                console.error(`SIM ERROR (Log): Stuck! Lvl=${simulationCurrentLevel}, E=${currentEnergy}, LvlT=${levelUpTimeRemainingMinutes}, Boost=${useBoost}. Scenario=${scenario}. Inputs:`, initialData);
+                return { error: `Simulation logic error (Log): Cannot determine time to wait at level ${simulationCurrentLevel}.` };
+            }
         }
 
         // --- II. Advance Time and Log Wait Period ---
         if (timeToWaitMinutes > 0) {
-             // Log the waiting period *before* updating state
-             actionLog.push({
-                 type: 'WAIT',
-                 durationMin: Math.round(timeToWaitMinutes),
-                 reason: waitReason,
-                 currentTotalTimeMin: Math.round(currentTotalTimeMinutes + timeToWaitMinutes), // Time at END of wait
-                 level: simulationCurrentLevel // Level during wait
-             });
+            // Log the waiting period *before* updating state
+            actionLog.push({
+                type: 'WAIT',
+                durationMin: Math.round(timeToWaitMinutes),
+                reason: waitReason,
+                currentTotalTimeMin: Math.round(currentTotalTimeMinutes + timeToWaitMinutes), // Time at END of wait
+                level: simulationCurrentLevel // Level during wait
+            });
 
-             currentTotalTimeMinutes += timeToWaitMinutes;
-             if (levelUpTimeRemainingMinutes > 0) {
-                 levelUpTimeRemainingMinutes = Math.max(0, levelUpTimeRemainingMinutes - timeToWaitMinutes);
-             }
-             const energyGained = timeToWaitMinutes / singleEnergyRefillMinutes;
-             currentEnergy = Math.min(energyPerHunt, currentEnergy + energyGained);
+            currentTotalTimeMinutes += timeToWaitMinutes;
+            if (levelUpTimeRemainingMinutes > 0) {
+                levelUpTimeRemainingMinutes = Math.max(0, levelUpTimeRemainingMinutes - timeToWaitMinutes);
+            }
+            const energyGained = timeToWaitMinutes / singleEnergyRefillMinutes;
+            currentEnergy = Math.min(energyPerHunt, currentEnergy + energyGained);
         }
 
         // --- III. Check for and Execute Actions (if ready) ---
         let canStartNewAction = currentEnergy === energyPerHunt && levelUpTimeRemainingMinutes === 0;
-        if (scenario === 'alternate' && currentEnergy === energyPerHunt) {
-             canStartNewAction = true; // Alternate can start hunt if energy full, even if level timer running
+        if (scenario === 'nonLeader' && currentEnergy === energyPerHunt) {
+            canStartNewAction = true; // Alternate can start hunt if energy full, even if level timer running
         }
 
         if (canStartNewAction) {
@@ -217,20 +238,22 @@ export function simulateLevelingProcess(initialData, optimalDistributionToAdd, s
             let waitToBoostDecisionData = null; // Store data if wait chosen
 
             // --- Decision Logic ---
-            if (canAffordBoost) {
+            if (canAffordBoost && levelUpTimeMinutes > BOOST_WORTHINESS_THRESHOLD_MINUTES) { // <-- Added threshold check
                 decision = 'LEVEL_BOOST';
             } else if (canAffordNormalLevelUp) {
-                if (useBoost && levelUpTimeMinutes > 0) {
+                // Check if we should wait for boost (only if boost is worthwhile and affordable eventually)
+                if (useBoost && levelUpTimeMinutes > BOOST_WORTHINESS_THRESHOLD_MINUTES) { // <-- Added threshold check here too
                     const sloveNeededForBoost = (levelUpCostSlove + boostCost) - currentSloveBalance;
+                    // Estimate time to get SLOV needed for boost
                     const slovePerHuntCycleEst = estimateSlovPerHuntCycle(initialData, rarityInfo, optimalDistributionToAdd, simulationCurrentLevel, totalEnduranceConsumed, scenario, externalLeaderBaseSlovePerHunt);
 
                     if (slovePerHuntCycleEst > 0) {
                         const huntsNeededEst = Math.ceil(sloveNeededForBoost / slovePerHuntCycleEst);
-                        // Estimate time including hunt duration + full refill per hunt
                         estimatedHuntWaitTime = huntsNeededEst * (huntDurationMinutes + fullRefillMinutes);
 
+                        // Decide: Wait for boost only if it's faster than normal level up AND boost is deemed worthwhile
                         if (estimatedHuntWaitTime < levelUpTimeMinutes) {
-                            decision = 'WAIT_FOR_BOOST'; // Will result in HUNT action this turn
+                            decision = 'WAIT_FOR_BOOST';
                             waitToBoostDecisionData = { // Store data for logging
                                 atLevel: simulationCurrentLevel,
                                 targetLevel: targetLevel,
@@ -238,15 +261,16 @@ export function simulateLevelingProcess(initialData, optimalDistributionToAdd, s
                                 normalTimeMin: Math.round(levelUpTimeMinutes)
                             };
                         } else {
+                            // Waiting is slower OR boost isn't worthwhile -> Level normally
                             decision = 'LEVEL_NORMAL';
                         }
-                    } else {
+                    } else { // Cannot earn SLOV to boost
                         decision = 'LEVEL_NORMAL';
                     }
-                } else {
+                } else { // Not using boost OR boost isn't worthwhile for this level -> Level normally
                     decision = 'LEVEL_NORMAL';
                 }
-            } else {
+            } else { // Cannot afford normal level up
                 decision = 'HUNT';
             }
 
@@ -280,64 +304,44 @@ export function simulateLevelingProcess(initialData, optimalDistributionToAdd, s
                 }
             } // End Leader Action
 
-            // --- Bulk Scenario ---
-            else if (scenario === 'bulk') {
-                 if (levelUpTimeRemainingMinutes > 0 && decision !== null) { /* Wait */ }
-                 else if (decision === 'LEVEL_BOOST') {
-                    currentSloveBalance -= (levelUpCostSlove + boostCost);
-                    actionLog.push({ type: 'LEVEL_BOOST', fromLevel: simulationCurrentLevel, toLevel: targetLevel, sloveCost: levelUpCostSlove, seedCost: levelUpCostSeed, boostCost: boostCost, currentTotalTimeMin: Math.round(currentTotalTimeMinutes) });
-                    simulationCurrentLevel++; levelUpTimeRemainingMinutes = 0; actionLogged = true;
-                 } else if (decision === 'LEVEL_NORMAL') {
-                     currentSloveBalance -= levelUpCostSlove;
-                     actionLog.push({ type: 'LEVEL_NORMAL_START', fromLevel: simulationCurrentLevel, toLevel: targetLevel, sloveCost: levelUpCostSlove, seedCost: levelUpCostSeed, durationMin: levelUpTimeMinutes, currentTotalTimeMin: Math.round(currentTotalTimeMinutes) });
-                     simulationCurrentLevel++; levelUpTimeRemainingMinutes = levelUpTimeMinutes; actionLogged = true;
-                 } else { // HUNT or WAIT_FOR_BOOST
-                      if (waitToBoostDecisionData) actionLog.push({ type: 'DECISION_WAIT_FOR_BOOST', ...waitToBoostDecisionData, currentTotalTimeMin: Math.round(currentTotalTimeMinutes) });
-                     const currentSimYear = Math.floor(totalEnduranceConsumed / 100) + currentAge; const reductionPercent = Utils.getFibonacciReductionPercent(currentSimYear); const earningMultiplier = Math.max(0, 1 - (reductionPercent / 100)); const sloveEarnedThisHunt = externalLeaderBaseSlovePerHunt * earningMultiplier;
-                     currentTotalTimeMinutes += huntDurationMinutes; currentEnergy = 0;
-                     actionLog.push({ type: 'HUNT', level: simulationCurrentLevel, sloveEarned: parseFloat(sloveEarnedThisHunt.toFixed(2)), enduCost: parseFloat(externalLeaderEnduranceCost.toFixed(4)), currentTotalTimeMin: Math.round(currentTotalTimeMinutes) });
-                     currentSloveBalance += sloveEarnedThisHunt; totalEnduranceConsumed += externalLeaderEnduranceCost; actionLogged = true;
-                 }
-            } // End Bulk Action
-
             // --- Alternate Scenario ---
-             else if (scenario === 'alternate') {
-                 let performedHunt = false; // Did we hunt this cycle?
+            else if (scenario === 'nonLeader') {
+                let performedHunt = false; // Did we hunt this cycle?
 
-                 if (decision === 'LEVEL_BOOST') {
-                     if (levelUpTimeRemainingMinutes === 0) { // Only boost if not already leveling
-                         currentSloveBalance -= (levelUpCostSlove + boostCost);
-                         actionLog.push({ type: 'LEVEL_BOOST', fromLevel: simulationCurrentLevel, toLevel: targetLevel, sloveCost: levelUpCostSlove, seedCost: levelUpCostSeed, boostCost: boostCost, currentTotalTimeMin: Math.round(currentTotalTimeMinutes) });
-                         simulationCurrentLevel++; levelUpTimeRemainingMinutes = 0;
-                         if (simulationCurrentLevel >= maxLevel) { actionLogged = true; continue; }
-                     }
-                     // Proceed to hunt
-                     const currentSimYear = Math.floor(totalEnduranceConsumed / 100) + currentAge; const reductionPercent = Utils.getFibonacciReductionPercent(currentSimYear); const earningMultiplier = Math.max(0, 1 - (reductionPercent / 100)); const sloveEarnedThisHunt = externalLeaderBaseSlovePerHunt * earningMultiplier;
-                     currentTotalTimeMinutes += huntDurationMinutes; currentEnergy = 0;
-                     actionLog.push({ type: 'HUNT', level: simulationCurrentLevel, sloveEarned: parseFloat(sloveEarnedThisHunt.toFixed(2)), enduCost: parseFloat(externalLeaderEnduranceCost.toFixed(4)), currentTotalTimeMin: Math.round(currentTotalTimeMinutes) });
-                     currentSloveBalance += sloveEarnedThisHunt; totalEnduranceConsumed += externalLeaderEnduranceCost;
-                     actionLogged = true; performedHunt = true;
+                if (decision === 'LEVEL_BOOST') {
+                    if (levelUpTimeRemainingMinutes === 0) { // Only boost if not already leveling
+                        currentSloveBalance -= (levelUpCostSlove + boostCost);
+                        actionLog.push({ type: 'LEVEL_BOOST', fromLevel: simulationCurrentLevel, toLevel: targetLevel, sloveCost: levelUpCostSlove, seedCost: levelUpCostSeed, boostCost: boostCost, currentTotalTimeMin: Math.round(currentTotalTimeMinutes) });
+                        simulationCurrentLevel++; levelUpTimeRemainingMinutes = 0;
+                        if (simulationCurrentLevel >= maxLevel) { actionLogged = true; continue; }
+                    }
+                    // Proceed to hunt
+                    const currentSimYear = Math.floor(totalEnduranceConsumed / 100) + currentAge; const reductionPercent = Utils.getFibonacciReductionPercent(currentSimYear); const earningMultiplier = Math.max(0, 1 - (reductionPercent / 100)); const sloveEarnedThisHunt = externalLeaderBaseSlovePerHunt * earningMultiplier;
+                    currentTotalTimeMinutes += huntDurationMinutes; currentEnergy = 0;
+                    actionLog.push({ type: 'HUNT', level: simulationCurrentLevel, sloveEarned: parseFloat(sloveEarnedThisHunt.toFixed(2)), enduCost: parseFloat(externalLeaderEnduranceCost.toFixed(4)), currentTotalTimeMin: Math.round(currentTotalTimeMinutes) });
+                    currentSloveBalance += sloveEarnedThisHunt; totalEnduranceConsumed += externalLeaderEnduranceCost;
+                    actionLogged = true; performedHunt = true;
 
-                 } else if (decision === 'LEVEL_NORMAL') {
-                     if (levelUpTimeRemainingMinutes === 0) { // Only start level up if not already leveling
-                         currentSloveBalance -= levelUpCostSlove;
-                         actionLog.push({ type: 'LEVEL_NORMAL_START', fromLevel: simulationCurrentLevel, toLevel: targetLevel, sloveCost: levelUpCostSlove, seedCost: levelUpCostSeed, durationMin: levelUpTimeMinutes, currentTotalTimeMin: Math.round(currentTotalTimeMinutes) });
-                         simulationCurrentLevel++; levelUpTimeRemainingMinutes = levelUpTimeMinutes;
-                          if (simulationCurrentLevel >= maxLevel) { actionLogged = true; continue; }
-                     }
-                     // Proceed to hunt
-                     const currentSimYear = Math.floor(totalEnduranceConsumed / 100) + currentAge; const reductionPercent = Utils.getFibonacciReductionPercent(currentSimYear); const earningMultiplier = Math.max(0, 1 - (reductionPercent / 100)); const sloveEarnedThisHunt = externalLeaderBaseSlovePerHunt * earningMultiplier;
-                     currentTotalTimeMinutes += huntDurationMinutes; currentEnergy = 0;
-                     actionLog.push({ type: 'HUNT', level: simulationCurrentLevel, sloveEarned: parseFloat(sloveEarnedThisHunt.toFixed(2)), enduCost: parseFloat(externalLeaderEnduranceCost.toFixed(4)), currentTotalTimeMin: Math.round(currentTotalTimeMinutes) });
-                     currentSloveBalance += sloveEarnedThisHunt; totalEnduranceConsumed += externalLeaderEnduranceCost;
-                     actionLogged = true; performedHunt = true;
+                } else if (decision === 'LEVEL_NORMAL') {
+                    if (levelUpTimeRemainingMinutes === 0) { // Only start level up if not already leveling
+                        currentSloveBalance -= levelUpCostSlove;
+                        actionLog.push({ type: 'LEVEL_NORMAL_START', fromLevel: simulationCurrentLevel, toLevel: targetLevel, sloveCost: levelUpCostSlove, seedCost: levelUpCostSeed, durationMin: levelUpTimeMinutes, currentTotalTimeMin: Math.round(currentTotalTimeMinutes) });
+                        simulationCurrentLevel++; levelUpTimeRemainingMinutes = levelUpTimeMinutes;
+                        if (simulationCurrentLevel >= maxLevel) { actionLogged = true; continue; }
+                    }
+                    // Proceed to hunt
+                    const currentSimYear = Math.floor(totalEnduranceConsumed / 100) + currentAge; const reductionPercent = Utils.getFibonacciReductionPercent(currentSimYear); const earningMultiplier = Math.max(0, 1 - (reductionPercent / 100)); const sloveEarnedThisHunt = externalLeaderBaseSlovePerHunt * earningMultiplier;
+                    currentTotalTimeMinutes += huntDurationMinutes; currentEnergy = 0;
+                    actionLog.push({ type: 'HUNT', level: simulationCurrentLevel, sloveEarned: parseFloat(sloveEarnedThisHunt.toFixed(2)), enduCost: parseFloat(externalLeaderEnduranceCost.toFixed(4)), currentTotalTimeMin: Math.round(currentTotalTimeMinutes) });
+                    currentSloveBalance += sloveEarnedThisHunt; totalEnduranceConsumed += externalLeaderEnduranceCost;
+                    actionLogged = true; performedHunt = true;
 
-                 } else { // HUNT or WAIT_FOR_BOOST
+                } else { // HUNT or WAIT_FOR_BOOST
                     if (levelUpTimeRemainingMinutes > 0) {
                         // Cannot hunt only if leveling, must wait (wait logged above)
-                         actionLogged = false; // No action this cycle except waiting
+                        actionLogged = false; // No action this cycle except waiting
                     } else {
-                         if (waitToBoostDecisionData) actionLog.push({ type: 'DECISION_WAIT_FOR_BOOST', ...waitToBoostDecisionData, currentTotalTimeMin: Math.round(currentTotalTimeMinutes) });
+                        if (waitToBoostDecisionData) actionLog.push({ type: 'DECISION_WAIT_FOR_BOOST', ...waitToBoostDecisionData, currentTotalTimeMin: Math.round(currentTotalTimeMinutes) });
                         // Hunt Only
                         const currentSimYear = Math.floor(totalEnduranceConsumed / 100) + currentAge; const reductionPercent = Utils.getFibonacciReductionPercent(currentSimYear); const earningMultiplier = Math.max(0, 1 - (reductionPercent / 100)); const sloveEarnedThisHunt = externalLeaderBaseSlovePerHunt * earningMultiplier;
                         currentTotalTimeMinutes += huntDurationMinutes; currentEnergy = 0;
@@ -345,8 +349,8 @@ export function simulateLevelingProcess(initialData, optimalDistributionToAdd, s
                         currentSloveBalance += sloveEarnedThisHunt; totalEnduranceConsumed += externalLeaderEnduranceCost;
                         actionLogged = true; performedHunt = true;
                     }
-                 }
-             } // End Alternate Action
+                }
+            } // End Alternate Action
 
         } // End if(canStartNewAction)
 
@@ -373,7 +377,7 @@ function calculateTotalsFromLog(actionLog) {
     let lastTimestamp = 0;
 
     if (!actionLog || actionLog.length === 0) {
-       return { totalHuntsToReachMaxLevel: 0, totalGrossSloveEarnedDuringLeveling: 0, totalSloveSpentOnLeveling: 0, totalSeedSpentOnLeveling: 0, totalBoostCost: 0, netSloveAfterLevelingCosts: 0, totalLevelingMinutes: 0 };
+        return { totalHuntsToReachMaxLevel: 0, totalGrossSloveEarnedDuringLeveling: 0, totalSloveSpentOnLeveling: 0, totalSeedSpentOnLeveling: 0, totalBoostCost: 0, netSloveAfterLevelingCosts: 0, totalLevelingMinutes: 0 };
     }
 
     for (const action of actionLog) {
@@ -392,10 +396,10 @@ function calculateTotalsFromLog(actionLog) {
             totalSeedSpent += (typeof action.seedCost === 'number' ? action.seedCost : 0);
             totalBoostCost += (typeof action.boostCost === 'number' ? action.boostCost : 0);
         }
-         // LEVEL_NORMAL_START logs the cost when it starts, WAIT doesn't add cost
-         // DECISION_WAIT_FOR_BOOST is just informational
+        // LEVEL_NORMAL_START logs the cost when it starts, WAIT doesn't add cost
+        // DECISION_WAIT_FOR_BOOST is just informational
     }
-     const netSlove = totalGrossSlove - totalSloveSpent - totalBoostCost;
+    const netSlove = totalGrossSlove - totalSloveSpent - totalBoostCost;
 
     return {
         totalHuntsToReachMaxLevel: totalHunts,
@@ -406,4 +410,304 @@ function calculateTotalsFromLog(actionLog) {
         netSloveAfterLevelingCosts: parseFloat(netSlove.toFixed(2)),
         totalLevelingMinutes: Math.round(lastTimestamp) // Total time is the timestamp of the last action completion/start
     };
+}
+
+// --- A* Search Implementation for Optimal Leveling ---
+
+// Simple Priority Queue using Array Sort (Not efficient for large scale)
+class PriorityQueue {
+    constructor() {
+        this.elements = [];
+    }
+
+    enqueue(element, priority) {
+        this.elements.push({ element, priority });
+        this.sort();
+    }
+
+    dequeue() {
+        return this.elements.shift().element;
+    }
+
+    isEmpty() {
+        return this.elements.length === 0;
+    }
+
+    sort() {
+        this.elements.sort((a, b) => a.priority - b.priority);
+    }
+}
+
+/**
+ * A* Search to find the theoretically optimal (fastest time) leveling path.
+ * WARNING: Can be very computationally expensive (slow, high memory usage).
+ *
+ * @param {object} initialData - Same initial data as simulateLevelingProcess.
+ * @param {object} optimalDistributionToAdd - Point allocation strategy.
+ * @param {string} scenario - 'leader' or 'nonLeader'.
+ * @returns {object} Result object with path and stats, or error.
+ */
+export function findOptimalLevelingPathAStar(initialData, optimalDistributionToAdd, scenario = 'leader') {
+    const {
+        rarityName, className, currentLevel, maxLevel, currentAge, currentEdurance,
+        energyPerHunt, currentTotalProficiency, currentTotalRecovery
+    } = initialData;
+
+    // --- Basic Setup & Validation (Similar to simulateLevelingProcess) ---
+    if (currentLevel >= maxLevel) return { path: [], totalTimeMinutes: 0, error: null };
+    const rarityInfo = Utils.findRarityInfo(rarityName);
+    if (!rarityInfo) return { error: `Invalid Rarity Info for ${rarityName}` };
+    if (scenario === 'nonLeader' && (initialData.leaderProficiency === undefined || initialData.leaderRecovery === undefined)) {
+        return { error: `Missing leaderProficiency or leaderRecovery for 'nonLeader' scenario.` };
+    }
+
+    // --- Constants ---
+    const huntDurationMinutes = energyPerHunt * 10;
+    const fullRefillMinutes = 24 * 60;
+    const singleEnergyRefillMinutes = (energyPerHunt > 0) ? fullRefillMinutes / energyPerHunt : Infinity;
+
+    // --- External Leader Stats (if needed) ---
+    let externalLeaderBaseSlovePerHunt = null;
+    let externalLeaderEnduranceCost = null;
+    if (scenario === 'nonLeader') {
+        const externalLeaderClassName = initialData.leaderClass || className;
+        externalLeaderBaseSlovePerHunt = Utils.calculateBaseSlovePerHuntAction(initialData.leaderProficiency, externalLeaderClassName, energyPerHunt);
+        externalLeaderEnduranceCost = Utils.calculateEnduranceConsumedPerHuntAction(initialData.leaderRecovery, energyPerHunt);
+        if (!isFinite(externalLeaderEnduranceCost) || externalLeaderEnduranceCost <= 0) return { error: `Invalid endurance cost (${externalLeaderEnduranceCost}) for external leader.` };
+    }
+
+    // --- Heuristic Function (h) ---
+    const calculateHeuristic = (state) => {
+        let estimatedRemainingSlovNeeded = 0;
+        for (let lvl = state.level + 1; lvl <= maxLevel; lvl++) {
+            estimatedRemainingSlovNeeded += Utils.getSloveLevelUpCost(lvl);
+        }
+        const sloveDeficit = Math.max(0, estimatedRemainingSlovNeeded - state.slove);
+
+        // If no more SLOV is needed (or we already have enough), heuristic cost is 0
+        if (sloveDeficit <= 0) return 0;
+
+        // Estimate SLOV gain rate
+        const slovePerHuntCycleEst = estimateSlovPerHuntCycle(
+            initialData, rarityInfo, optimalDistributionToAdd, state.level,
+            state.endurance, scenario, externalLeaderBaseSlovePerHunt
+        );
+
+        // If estimation shows no SLOV can be earned, the goal is unreachable *from this state* via hunting
+        if (slovePerHuntCycleEst <= 0) {
+            // console.log(`Heuristic: Unreachable (SLOV gain <= 0) at Level ${state.level}, Endu ${state.endurance.toFixed(2)}, Time ${state.time.toFixed(0)}`); // Added logging
+            return Infinity;
+        }
+
+        const huntsNeededEst = sloveDeficit / slovePerHuntCycleEst;
+        const estimatedTimeToHunt = huntsNeededEst * (huntDurationMinutes + fullRefillMinutes); // Includes refill time
+
+        // Return estimated time, ensuring it's non-negative
+        return Math.max(0, estimatedTimeToHunt);
+    };
+
+    // --- A* Initialization ---
+    const openSet = new PriorityQueue();
+    const cameFrom = new Map(); // Stores the path: stateKey -> {prevStateKey, action, cost}
+    const gScore = new Map(); // Cost (time) from start to stateKey
+    const fScore = new Map(); // gScore + heuristic
+
+    const initialState = {
+        level: currentLevel,
+        slove: initialData.sloveBalance || 0,
+        energy: energyPerHunt,
+        levelUpTimer: 0, // Minutes remaining for current level-up
+        time: 0, // Current total time elapsed
+        endurance: currentEdurance
+    };
+    const startKey = `${initialState.level}-${initialState.slove.toFixed(2)}`; // Use toFixed(2) for key
+
+    gScore.set(startKey, 0);
+    fScore.set(startKey, calculateHeuristic(initialState));
+    openSet.enqueue(initialState, fScore.get(startKey));
+
+    // --- A* Search Loop ---
+    let iterations = 0;
+    const MAX_ITERATIONS = 5000000; // Safety break for performance
+
+    while (!openSet.isEmpty()) {
+        iterations++;
+        if (iterations > MAX_ITERATIONS) {
+            console.error("A* search exceeded max iterations");
+            return { error: "A* search took too long (exceeded max iterations)" };
+        }
+
+        const current = openSet.dequeue();
+        const currentKey = `${current.level}-${current.slove.toFixed(2)}`; // Use toFixed(2) for key
+
+        // --- Logging Current State ---
+        // console.log(`Dequeued: Lvl ${current.level}, SLOV ${current.slove.toFixed(2)}, E ${current.energy.toFixed(1)}, Timer ${current.levelUpTimer.toFixed(0)}, Time ${current.time.toFixed(0)}, gScore ${gScore.get(currentKey)?.toFixed(0)}, fScore ${fScore.get(currentKey)?.toFixed(0)}`);
+
+        // --- Goal Check ---
+        if (current.level === maxLevel) {
+            // Reconstruct path
+            const path = [];
+            let tempKey = currentKey;
+            while (cameFrom.has(tempKey)) {
+                const { prevStateKey, action, cost } = cameFrom.get(tempKey);
+                path.push({ action, cost }); // Add action and its time cost
+                tempKey = prevStateKey;
+            }
+            path.reverse();
+            const finalTotals = calculateTotalsFromLog(path); // Use existing log calculator
+            return {
+                scenario: scenario + "-A*",
+                useBoost: true, // A* considers boost implicitly
+                ...finalTotals,
+                actionLog: path, // Rename for consistency?
+                totalLevelingMinutes: Math.round(current.time),
+                error: null
+            };
+        }
+
+        // --- Explore Neighbors (Possible Actions) ---
+        const possibleActions = [];
+
+        // 1. WAIT Action: Always possible if needed
+        let timeToWait = Infinity;
+        if (current.levelUpTimer > 0) timeToWait = Math.min(timeToWait, current.levelUpTimer);
+        if (current.energy < energyPerHunt) {
+            const timeToFullEnergy = (energyPerHunt - current.energy) * singleEnergyRefillMinutes;
+            timeToWait = Math.min(timeToWait, timeToFullEnergy);
+        }
+        if (timeToWait === Infinity && current.energy === energyPerHunt && current.levelUpTimer === 0) {
+            timeToWait = 0; // Ready for action now
+        }
+
+        if (timeToWait > 0 && timeToWait !== Infinity) {
+            possibleActions.push({ type: 'WAIT', duration: timeToWait });
+        }
+
+        // 2. Actions possible only if energy is full and (for leader) level timer is 0
+        let canAct = (scenario === 'leader' && current.energy === energyPerHunt && current.levelUpTimer === 0) ||
+            (scenario === 'nonLeader' && current.energy === energyPerHunt);
+
+        if (canAct) {
+            const targetLevel = current.level + 1;
+            if (targetLevel <= maxLevel) {
+                const levelUpCostSlove = Utils.getSloveLevelUpCost(targetLevel);
+                const levelUpTimeHours = Utils.getLevelUpTimeHours(targetLevel);
+                const levelUpTimeMinutes = levelUpTimeHours * 60;
+                const boostCost = Utils.getBoostCost(targetLevel);
+
+                // 2a. HUNT Action
+                possibleActions.push({ type: 'HUNT' });
+
+                // 2b. LEVEL_NORMAL Action
+                if (current.slove >= levelUpCostSlove && current.levelUpTimer === 0) { // Can only start if timer is 0
+                    possibleActions.push({ type: 'LEVEL_NORMAL', cost: levelUpCostSlove, duration: levelUpTimeMinutes, targetLevel: targetLevel });
+                }
+
+                // 2c. LEVEL_BOOST Action
+                if (current.slove >= (levelUpCostSlove + boostCost) && current.levelUpTimer === 0) { // Can only start if timer is 0
+                    possibleActions.push({ type: 'LEVEL_BOOST', cost: levelUpCostSlove, boostCost: boostCost, targetLevel: targetLevel });
+                }
+            }
+        }
+
+        // --- Process Each Possible Action --- 
+        for (const action of possibleActions) {
+            let neighbor = { ...current }; // Create next state based on current
+            let actionCost = 0; // Time cost of this specific action/wait
+
+            // Apply action to create neighbor state
+            if (action.type === 'WAIT') {
+                actionCost = action.duration;
+                neighbor.time += actionCost;
+                if (neighbor.levelUpTimer > 0) {
+                    neighbor.levelUpTimer = Math.max(0, neighbor.levelUpTimer - actionCost);
+                }
+                const energyGained = actionCost / singleEnergyRefillMinutes;
+                neighbor.energy = Math.min(energyPerHunt, neighbor.energy + energyGained);
+            }
+            else if (action.type === 'HUNT') {
+                actionCost = huntDurationMinutes;
+                neighbor.time += actionCost;
+                neighbor.energy = 0; // Consumed energy
+
+                let sloveEarned = 0;
+                let enduCost = 0;
+                const currentSimYear = Math.floor(neighbor.endurance / 100) + currentAge;
+                const reductionPercent = Utils.getFibonacciReductionPercent(currentSimYear);
+                const earningMultiplier = Math.max(0, 1 - (reductionPercent / 100));
+
+                if (scenario === 'leader') {
+                    const { simProficiency, simRecovery } = getSimStatsForLevel(initialData, rarityInfo, optimalDistributionToAdd, neighbor.level);
+                    const baseSlove = Utils.calculateBaseSlovePerHuntAction(simProficiency, className, energyPerHunt);
+                    enduCost = Utils.calculateEnduranceConsumedPerHuntAction(simRecovery, energyPerHunt);
+                    sloveEarned = baseSlove * earningMultiplier;
+                } else { // nonLeader
+                    sloveEarned = externalLeaderBaseSlovePerHunt * earningMultiplier;
+                    enduCost = externalLeaderEnduranceCost;
+                }
+                neighbor.slove += sloveEarned;
+                neighbor.endurance += enduCost;
+            }
+            else if (action.type === 'LEVEL_NORMAL') {
+                actionCost = 0; // Starting level up is instant, time progresses via WAIT
+                neighbor.slove -= action.cost;
+                neighbor.level = action.targetLevel;
+                neighbor.levelUpTimer = action.duration; // Set the timer
+                // Note: Time doesn't advance here, it advances in subsequent WAIT steps
+            }
+            else if (action.type === 'LEVEL_BOOST') {
+                actionCost = 0; // Boosting is instant
+                neighbor.slove -= (action.cost + action.boostCost);
+                neighbor.level = action.targetLevel;
+                neighbor.levelUpTimer = 0; // No timer for boost
+            }
+
+            // --- Check if this path to neighbor is better ---
+            const neighborKey = `${neighbor.level}-${neighbor.slove.toFixed(2)}`; // Use toFixed(2) for key
+            const tentative_gScore = (gScore.get(currentKey) ?? 0) + actionCost; // Ensure gScore exists for currentKey
+
+            const current_gScore_for_neighbor = gScore.get(neighborKey) ?? Infinity;
+
+            if (tentative_gScore < current_gScore_for_neighbor) {
+                // This path to neighbor is better than any previous one. Record it.
+                cameFrom.set(neighborKey, { prevStateKey: currentKey, action: action, cost: actionCost });
+                gScore.set(neighborKey, tentative_gScore);
+
+                const h = calculateHeuristic(neighbor);
+
+                if (h === Infinity && neighbor.level < maxLevel) {
+                    // console.log(`Pruning path at Lvl ${neighbor.level}, SLOV ${neighbor.slove.toFixed(2)} due to h=Infinity`); // Added logging
+                    continue; // Skip adding this neighbor to openSet
+                }
+
+                fScore.set(neighborKey, tentative_gScore + h);
+
+                // Check if neighbor is already in openSet to update priority (simplified check)
+                // A more robust implementation would use a Map for faster lookups or update priority directly if PQ supports it.
+                let foundInOpen = false;
+                for (let item of openSet.elements) {
+                    // Compare elements based on a unique key representation
+                    const itemKey = `${item.element.level}-${Math.round(item.element.slove)}`;
+                    if (itemKey === neighborKey) {
+                        item.priority = fScore.get(neighborKey); // Update priority in place (relies on next sort)
+                        foundInOpen = true;
+                        break;
+                    }
+                }
+                if (!foundInOpen) {
+                    openSet.enqueue(neighbor, fScore.get(neighborKey));
+                } else {
+                    openSet.sort(); // Re-sort if an existing element's priority was updated
+                }
+
+            } else {
+                // --- Logging Discarded Path ---
+                // console.log(`  Discarded path to Lvl ${neighbor.level}, SLOV ${neighbor.slove.toFixed(2)} via ${action.type}. New gScore ${tentative_gScore.toFixed(0)} >= Existing ${current_gScore_for_neighbor.toFixed(0)}`);
+            } // End if tentative_gScore is better
+        } // End processing actions
+    } // End while openSet not empty
+
+    // If loop finishes without finding the goal
+    console.error(`A* search completed exploration but did not find a path to level ${maxLevel}. Explored ${iterations} states.`);
+    return { error: `A* search failed to find a path to the goal level ${maxLevel}. Possible reasons: goal unreachable, heuristic issue, or state space problem.` };
 }
