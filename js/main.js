@@ -1,5 +1,5 @@
 import * as  Utils from './utils.js';
-import {findOptimalDistributionAndSimulate} from './optimalDistribution.js';
+import { findOptimalDistributionAndSimulate } from './optimalDistribution.js';
 import { simulateLevelingScenarios } from './simulateLeveling.js';
 
 function validateFormData(data, targetAge) {
@@ -25,6 +25,34 @@ const energyPerHuntInput = document.getElementById('energy-per-action');
 const targetAgeInput = document.getElementById('target-age');
 const calculateButton = document.getElementById('calculate-button');
 const resultsArea = document.getElementById('results-area');
+
+// --- Leader DOM Elements ---
+const leaderRaritySelect = document.getElementById('leader-rarity');
+const leaderProficiencyInput = document.getElementById('leader-proficiency');
+const leaderRecoveryInput = document.getElementById('leader-recovery');
+
+// --- Update Inputs for Rarity ---
+function updateInputsForRarity(rarity, profInput, recInput) {
+    const rarityInfo = Utils.findRarityInfo(rarity);
+    if (!rarityInfo) return;
+    // Set min/max for proficiency and recovery
+    profInput.value = rarityInfo.minBase;
+    profInput.min = rarityInfo.minBase;
+    recInput.value = rarityInfo.minBase;
+    recInput.min = rarityInfo.minBase;
+}
+
+// --- Event Listeners for Rarity Changes ---
+raritySelect.addEventListener('change', () => {
+    updateInputsForRarity(raritySelect.value, currentProficiencyInput, currentRecoveryInput);
+});
+leaderRaritySelect.addEventListener('change', () => {
+    updateInputsForRarity(leaderRaritySelect.value, leaderProficiencyInput, leaderRecoveryInput);
+});
+
+// Initialize on page load
+updateInputsForRarity(raritySelect.value, currentProficiencyInput, currentRecoveryInput);
+updateInputsForRarity(leaderRaritySelect.value, leaderProficiencyInput, leaderRecoveryInput);
 
 // Structured result fields
 const resultsCard = document.getElementById('results-card');
@@ -84,7 +112,7 @@ function getFormData() {
         leaderProficiency: parseInt(document.getElementById('leader-proficiency').value, 10),
         leaderRecovery: parseInt(document.getElementById('leader-recovery').value, 10),
         leaderClass: document.getElementById('leader-class').value,
-        leaderType: document.getElementById('leader-type').value
+        leaderType: document.getElementById('leader-rarity').value
     };
 }
 function renderActionLog(actionLog, containerElement) {
@@ -109,17 +137,17 @@ function renderActionLog(actionLog, containerElement) {
                 timeText = `(Started at: ${Utils.formatTimeDH(action.currentTotalTimeMin)})`;
                 break;
             case 'LEVEL_BOOST':
-                 actionText = `Level ${action.fromLevel} -> ${action.toLevel}: <strong class="boosted">Boosted Level Up!</strong> (Cost ${action.sloveCost} SLOV + ${action.seedCost} SEED + ${action.boostCost} Boost SLOV)`;
-                 break;
-             case 'DECISION_WAIT_FOR_BOOST':
-                 actionText = `<strong class="decision-note">Strategy Decision (at Lv ${action.atLevel} targeting Lv ${action.targetLevel}): Chose to Wait/Hunt (est. ${Utils.formatTimeDH(action.waitTimeEstMin)}) instead of Normal Level Up (${Utils.formatTimeDH(action.normalTimeMin)}) to afford boost.</strong>`;
-                 timeText = `(Decision at: ${Utils.formatTimeDH(action.currentTotalTimeMin)})`;
-                 break;
-             case 'WAIT':
-                 actionText = `Waited ${Utils.formatTimeDH(action.durationMin)} (${action.reason})`;
-                 // Timestamp is end time of wait
-                 timeText = `(Finished at: ${Utils.formatTimeDH(action.currentTotalTimeMin)}, At Level: ${action.level})`;
-                 break;
+                actionText = `Level ${action.fromLevel} -> ${action.toLevel}: <strong class="boosted">Boosted Level Up!</strong> (Cost ${action.sloveCost} SLOV + ${action.seedCost} SEED + ${action.boostCost} Boost SLOV)`;
+                break;
+            case 'DECISION_WAIT_FOR_BOOST':
+                actionText = `<strong class="decision-note">Strategy Decision (at Lv ${action.atLevel} targeting Lv ${action.targetLevel}): Chose to Wait/Hunt (est. ${Utils.formatTimeDH(action.waitTimeEstMin)}) instead of Normal Level Up (${Utils.formatTimeDH(action.normalTimeMin)}) to afford boost.</strong>`;
+                timeText = `(Decision at: ${Utils.formatTimeDH(action.currentTotalTimeMin)})`;
+                break;
+            case 'WAIT':
+                actionText = `Waited ${Utils.formatTimeDH(action.durationMin)} (${action.reason})`;
+                // Timestamp is end time of wait
+                timeText = `(Finished at: ${Utils.formatTimeDH(action.currentTotalTimeMin)}, At Level: ${action.level})`;
+                break;
             default:
                 actionText = `Unknown Action: ${JSON.stringify(action)}`;
                 break;
@@ -156,31 +184,31 @@ function renderResults(result, initialData, targetAge) {
         // Earnings Outcome Section
         if (result.earningsOutcome) {
             // ... (render earnings outcome as before, including Time to Target Age) ...
-             resultEnduranceHunt.textContent = result.earningsOutcome.enduranceConsumedPerHuntAction?.toFixed(4) ?? 'N/A';
-             resultHuntsTargetAge.textContent = result.earningsOutcome.huntsToReachTargetAge ?? 'N/A';
-             resultBaseSloveHunt.textContent = result.earningsOutcome.baseSlovePerHuntActionAtMaxLevel?.toFixed(2) ?? 'N/A';
-             resultMaxTotalSlove.textContent = result.earningsOutcome.maxTotalBaseSloveEarnedByTargetAge?.toFixed(2) ?? 'N/A'; // Check var name
-             resultRecoveryCost.textContent = (result.earningsOutcome.slovRecoveryCostPerHuntActionAtMaxLevel?.toFixed(4) ?? 'N/A') + ' SLOV';
+            resultEnduranceHunt.textContent = result.earningsOutcome.enduranceConsumedPerHuntAction?.toFixed(4) ?? 'N/A';
+            resultHuntsTargetAge.textContent = result.earningsOutcome.huntsToReachTargetAge ?? 'N/A';
+            resultBaseSloveHunt.textContent = result.earningsOutcome.baseSlovePerHuntActionAtMaxLevel?.toFixed(2) ?? 'N/A';
+            resultMaxTotalSlove.textContent = result.earningsOutcome.maxTotalBaseSloveEarnedByTargetAge?.toFixed(2) ?? 'N/A'; // Check var name
+            resultRecoveryCost.textContent = (result.earningsOutcome.slovRecoveryCostPerHuntActionAtMaxLevel?.toFixed(4) ?? 'N/A') + ' SLOV';
 
-             const recoveryCostParent = resultRecoveryCost.parentNode;
-              if(recoveryCostParent) {
-                 let timeAgeRow = document.getElementById('result-time-targetage');
-                 if (!timeAgeRow) {
-                     const dt = document.createElement('dt'); dt.textContent = 'Time to Target Age';
-                     const dd = document.createElement('dd'); dd.id = 'result-time-targetage';
-                     dt.className = 'important'; dd.className = 'important';
-                     recoveryCostParent.appendChild(dt); recoveryCostParent.appendChild(dd);
-                     timeAgeRow = dd;
-                 }
-                 timeAgeRow.textContent = result.timeToTargetAge ?? 'N/A';
-             }
+            const recoveryCostParent = resultRecoveryCost.parentNode;
+            if (recoveryCostParent) {
+                let timeAgeRow = document.getElementById('result-time-targetage');
+                if (!timeAgeRow) {
+                    const dt = document.createElement('dt'); dt.textContent = 'Time to Target Age';
+                    const dd = document.createElement('dd'); dd.id = 'result-time-targetage';
+                    dt.className = 'important'; dd.className = 'important';
+                    recoveryCostParent.appendChild(dt); recoveryCostParent.appendChild(dd);
+                    timeAgeRow = dd;
+                }
+                timeAgeRow.textContent = result.timeToTargetAge ?? 'N/A';
+            }
         } else {
             resultEnduranceHunt.textContent = 'N/A';
             resultHuntsTargetAge.textContent = 'N/A';
             resultBaseSloveHunt.textContent = 'N/A';
             resultMaxTotalSlove.textContent = 'N/A';
             resultRecoveryCost.textContent = 'N/A';
-             // Remove old time row if it exists
+            // Remove old time row if it exists
             document.getElementById('result-time-targetage')?.closest('dl')?.querySelector('dt:last-of-type')?.remove(); // Remove dt too
             document.getElementById('result-time-targetage')?.remove();
         }
@@ -209,9 +237,9 @@ function renderResults(result, initialData, targetAge) {
             table.appendChild(tbody);
             resultsTableContainer.appendChild(table);
         } else if (initialData.currentAge === targetAge) {
-             resultsTableContainer.innerHTML = ''; // Don't show table for single hunt
+            resultsTableContainer.innerHTML = ''; // Don't show table for single hunt
         }
-         else {
+        else {
             resultsTableContainer.innerHTML = '<p>Year-by-year earnings data not available.</p>';
         }
 
@@ -242,7 +270,7 @@ function renderResults(result, initialData, targetAge) {
             ];
 
             // 2. Build Detailed Logs (populate scenarioDetailedLogsHtml)
-             scenarioDetailedLogsHtml = '<div class="results-section"><h3>Leveling Scenario Details</h3>';
+            scenarioDetailedLogsHtml = '<div class="results-section"><h3>Leveling Scenario Details</h3>';
 
             for (const s of scenarios) {
                 const r = result.scenarioResults[s.key];
@@ -284,8 +312,8 @@ function renderResults(result, initialData, targetAge) {
 
             // Append detailed logs HTML (e.g., after summary)
             if (scenarioLogContainerEl) {
-                 scenarioLogContainerEl.innerHTML = scenarioDetailedLogsHtml;
-                 scenarioLogContainerEl.style.display = ''; // Show the container
+                scenarioLogContainerEl.innerHTML = scenarioDetailedLogsHtml;
+                scenarioLogContainerEl.style.display = ''; // Show the container
             }
 
         }
@@ -299,9 +327,9 @@ function renderResults(result, initialData, targetAge) {
 calculateButton.addEventListener('click', () => {
     clearResults();
     resultsPlaceholder.innerHTML = '<p>Calculating...</p>';
-    resultsPlaceholder.style.display = ''; 
-     // Use setTimeout to allow the UI to update before potentially long calculation
-     setTimeout(() => {
+    resultsPlaceholder.style.display = '';
+    // Use setTimeout to allow the UI to update before potentially long calculation
+    setTimeout(() => {
         try {
             const initialData = getFormData();
             const targetAge = parseInt(targetAgeInput.value, 10);

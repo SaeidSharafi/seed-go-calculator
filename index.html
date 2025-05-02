@@ -16,8 +16,8 @@
           <div class="form-group">
             <label for="rarity">Rarity:</label>
             <select id="rarity" required>
-              <option value="Common">Common</option>
-              <option value="Uncommon" selected>Uncommon</option>
+              <option value="Common" selected>Common</option>
+              <option value="Uncommon">Uncommon</option>
               <option value="Rare">Rare</option>
               <option value="Epic">Epic</option>
               <option value="Legendary">Legendary</option>
@@ -91,7 +91,7 @@
             <input
               type="number"
               id="current-proficiency"
-              value="12"
+              value="0"
               min="0"
               step="1"
               required
@@ -102,7 +102,7 @@
             <input
               type="number"
               id="current-recovery"
-              value="18"
+              value="1"
               min="0"
               step="1"
               required
@@ -115,7 +115,7 @@
             <input
               type="number"
               id="energy-per-action"
-              value="6"
+              value="1"
               min="1"
               step="1"
               required
@@ -142,10 +142,10 @@
           >
           <div class="form-grid">
             <div class="form-group">
-              <label for="leader-type">Leader Rarity:</label>
-              <select id="leader-type" required>
-                <option value="Common">Common</option>
-                <option value="Uncommon" selected>Uncommon</option>
+              <label for="leader-rarity">Leader Rarity:</label>
+              <select id="leader-rarity" required>
+                <option value="Common" selected>Common</option>
+                <option value="Uncommon">Uncommon</option>
                 <option value="Rare">Rare</option>
                 <option value="Epic">Epic</option>
                 <option value="Legendary">Legendary</option>
@@ -154,10 +154,10 @@
             <div class="form-group">
               <label for="leader-class">Leader Class:</label>
               <select id="leader-class" required>
-                <option value="Aqua">Aqua</option>
+                <option value="Aqua" selected>Aqua</option>
                 <option value="Reptile">Reptile</option>
                 <option value="Beast">Beast</option>
-                <option value="Plant" selected>Plant</option>
+                <option value="Plant">Plant</option>
                 <option value="Bird">Bird</option>
                 <option value="Ghost">Ghost</option>
               </select>
@@ -167,7 +167,7 @@
               <input
                 type="number"
                 id="leader-level"
-                value="7"
+                value="0"
                 min="0"
                 max="30"
                 step="1"
@@ -179,7 +179,7 @@
               <input
                 type="number"
                 id="leader-proficiency"
-                value="42"
+                value="1"
                 min="0"
                 step="1"
                 required
@@ -190,7 +190,7 @@
               <input
                 type="number"
                 id="leader-recovery"
-                value="26"
+                value="1"
                 min="0"
                 step="1"
                 required
