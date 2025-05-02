@@ -229,7 +229,8 @@ function renderResults(result, initialData, targetAge) {
         }
 
         // Yearly Breakdown Table
-        if (result.yearlyBreakdown && result.yearlyBreakdown.length > 0 && initialData.currentAge !== targetAge) { // Hide if single hunt
+        if (result.yearlyBreakdown && result.yearlyBreakdown.length > 0 && initialData.currentAge !== targetAge) {
+            resultsTableContainer.innerHTML = '<h3>SLOV Earnings by Age</h3>'; // Clear previous content
             const table = document.createElement('table');
             table.className = 'earnings-table';
             const thead = document.createElement('thead');
