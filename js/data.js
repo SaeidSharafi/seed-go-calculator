@@ -6,7 +6,7 @@ export const RARITY_DATA = [
     { name: "Legendary", minBase: 50, maxBase: 112, bonusPts: 12 },
 ];
 
-export const BASE_EARNING_COEFFICIENTS = {
+export const ENDURANCE_COST_MULTIPLIER = {
     Common: {
         0: 0.2, 1: 0.31, 2: 0.32, 3: 0.33, 4: 0.35, 5: 0.36, 6: 0.37, 7: 0.38, 8: 0.4, 9: 0.41, 10: 0.42, 11: 0.44, 12: 0.46, 13: 0.48, 14: 0.5, 15: 0.52, 16: 0.54, 17: 0.56, 18: 0.58, 19: 0.6, 20: 0.62, 21: 0.64, 22: 0.67, 23: 0.7, 24: 0.72, 25: 0.75, 26: 0.78, 27: 0.81, 28: 0.83, 29: 0.87, 30: 0.9
     },

@@ -1,4 +1,4 @@
-import {BASE_EARNING_COEFFICIENTS,LEVEL_UP_DATA,RARITY_DATA, FIBONACCI_REDUCTION_PERCENT,BOOST_COST_DATA} from './data.js'
+import {ENDURANCE_COST_MULTIPLIER,LEVEL_UP_DATA,RARITY_DATA, FIBONACCI_REDUCTION_PERCENT,BOOST_COST_DATA} from './data.js'
 
 export function clamp(num, min, max) {
     return Math.max(min, Math.min(num, max));
@@ -39,7 +39,7 @@ export function calculateBaseSlovePerHuntAction(totalProficiencyPoints, classNam
 }
 
 export function calculateSlovRecoveryCostPerHuntAction(enduranceConsumedThisHunt, rarityName, level) {
-    const coeff = BASE_EARNING_COEFFICIENTS[rarityName]?.[level.toString()] ?? 0;
+    const coeff = ENDURANCE_COST_MULTIPLIER[rarityName]?.[level.toString()] ?? 0;
     return parseFloat((enduranceConsumedThisHunt * coeff).toFixed(2));
 }
 
