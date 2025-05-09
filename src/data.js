@@ -58,7 +58,7 @@ export const LEVEL_UP_DATA = [
     { level: "30", priceSlove: "100", priceSeed: "1000", timeHour: "30" }
 ];
 
-export const FIBONACCI_REDUCTION_PERCENT = [0, 1, 1, 2, 3, 5, 8, 13, 21, 34];
+export const FIBONACCI_REDUCTION_PERCENT = [0, 1, 2, 3, 5, 8, 13, 21, 34, 55, 79];
 export const BOOST_COST_DATA = [
     { level: 1, slove: 6 },
     { level: 2, slove: 12 },

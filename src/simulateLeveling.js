@@ -29,7 +29,7 @@ export function simulateLevelingScenarios(initialData, bestAllocation) {
      * WARNING: This can be very slow and memory-intensive.
      * Uncomment the following lines to run the A* search.
      */
-      //console.log(findOptimalLevelingPathAStar(initialData, bestAllocation, 'leader'));
+    //console.log(findOptimalLevelingPathAStar(initialData, bestAllocation, 'leader'));
 
 
     return {
@@ -158,6 +158,141 @@ export function simulateLevelingProcess(initialData, optimalDistributionToAdd, s
         externalLeaderBaseSlovePerHunt = Utils.calculateBaseSlovePerHuntAction(initialData.leaderProficiency, externalLeaderClassName, energyPerHunt);
         externalLeaderEnduranceCost = Utils.calculateEnduranceConsumedPerHuntAction(initialData.leaderRecovery, energyPerHunt);
         if (!isFinite(externalLeaderEnduranceCost) || externalLeaderEnduranceCost <= 0) return { error: `Invalid endurance cost (${externalLeaderEnduranceCost}) calculated for external leader.` };
+    }
+
+    // --- Helper for nonLeader scenario: simulate optimal hunt/level sequence ---
+    function simulateNonLeaderLevelingStep({
+        simulationCurrentLevel,
+        currentSloveBalance,
+        totalEnduranceConsumed,
+        currentEnergy,
+        currentTotalTimeMinutes,
+        actionLog,
+        maxLevel,
+        initialData,
+        optimalDistributionToAdd,
+        rarityInfo,
+        useBoost,
+        BOOST_WORTHINESS_THRESHOLD_MINUTES,
+        externalLeaderBaseSlovePerHunt,
+        externalLeaderEnduranceCost,
+        energyPerHunt,
+        singleEnergyRefillMinutes,
+        huntDurationMinutes,
+        fullRefillMinutes
+    }) {
+        const currentAge = initialData.leaderAge;
+        let levelUpTimeRemainingMinutes = 0;
+        let performedAction = false;
+        while (simulationCurrentLevel < maxLevel && !performedAction) {
+            const targetLevel = simulationCurrentLevel + 1;
+            if (targetLevel > maxLevel) break;
+            const levelUpCostSlove = Utils.getSloveLevelUpCost(targetLevel);
+            const levelUpCostSeed = Utils.getSeedLevelUpCost(targetLevel);
+            const levelUpTimeHours = Utils.getLevelUpTimeHours(targetLevel);
+            const boostCost = useBoost ? Utils.getBoostCost(targetLevel) : 0;
+            if (!isFinite(levelUpCostSlove) || !isFinite(levelUpCostSeed) || !isFinite(levelUpTimeHours) || !isFinite(boostCost)) {
+                return { error: `Missing or invalid level/boost data for level ${targetLevel}` };
+            }
+            const levelUpTimeMinutes = levelUpTimeHours * 60;
+            const canAffordNormalLevelUp = currentSloveBalance >= levelUpCostSlove;
+            const canAffordBoost = useBoost && (currentSloveBalance >= (levelUpCostSlove + boostCost));
+            // --- Decision: Boost, Normal, or Hunt ---
+            let decision = null;
+            if (canAffordBoost && levelUpTimeMinutes > BOOST_WORTHINESS_THRESHOLD_MINUTES) {
+                decision = 'LEVEL_BOOST';
+            } else if (canAffordNormalLevelUp) {
+                decision = 'LEVEL_NORMAL';
+            } else {
+                decision = 'HUNT';
+            }
+            // --- Execute ---
+            if (decision === 'LEVEL_BOOST') {
+                // Boost is instant, then hunt if energy full
+                currentSloveBalance -= (levelUpCostSlove + boostCost);
+                actionLog.push({ type: 'LEVEL_BOOST', fromLevel: simulationCurrentLevel, toLevel: targetLevel, sloveCost: levelUpCostSlove, seedCost: levelUpCostSeed, boostCost: boostCost, currentTotalTimeMin: Math.round(currentTotalTimeMinutes) });
+                simulationCurrentLevel++;
+                // After boost, if energy full, hunt
+                if (currentEnergy === energyPerHunt) {
+                    const currentSimYear = Math.floor(totalEnduranceConsumed / 100) + currentAge;
+                    const reductionPercent = Utils.getFibonacciReductionPercent(currentSimYear);
+                    const earningMultiplier = Math.max(0, 1 - (reductionPercent / 100));
+                    const sloveEarnedThisHunt = externalLeaderBaseSlovePerHunt * earningMultiplier;
+                    currentTotalTimeMinutes += huntDurationMinutes;
+                    currentEnergy = 0;
+                    actionLog.push({ type: 'HUNT', level: simulationCurrentLevel, sloveEarned: parseFloat(sloveEarnedThisHunt.toFixed(2)), enduCost: parseFloat(externalLeaderEnduranceCost.toFixed(4)), currentTotalTimeMin: Math.round(currentTotalTimeMinutes) });
+                    currentSloveBalance += sloveEarnedThisHunt;
+                    totalEnduranceConsumed += externalLeaderEnduranceCost;
+                }
+                performedAction = true;
+            } else if (decision === 'LEVEL_NORMAL') {
+                // Start level up, then hunt as many times as possible during level-up
+                currentSloveBalance -= levelUpCostSlove;
+                actionLog.push({ type: 'LEVEL_NORMAL_START', fromLevel: simulationCurrentLevel, toLevel: targetLevel, sloveCost: levelUpCostSlove, seedCost: levelUpCostSeed, durationMin: levelUpTimeMinutes, currentTotalTimeMin: Math.round(currentTotalTimeMinutes) });
+                simulationCurrentLevel++;
+                levelUpTimeRemainingMinutes = levelUpTimeMinutes;
+                // Hunt as many times as possible during level-up
+                while (levelUpTimeRemainingMinutes > 0) {
+                    // Wait for energy if not full
+                    if (currentEnergy < energyPerHunt) {
+                        const timeToFullEnergy = (energyPerHunt - currentEnergy) * singleEnergyRefillMinutes;
+                        if (timeToFullEnergy > levelUpTimeRemainingMinutes) {
+                            // Wait only the remaining level-up time
+                            actionLog.push({ type: 'WAIT', durationMin: Math.round(levelUpTimeRemainingMinutes), reason: 'Finish Level Up', currentTotalTimeMin: Math.round(currentTotalTimeMinutes + levelUpTimeRemainingMinutes), level: simulationCurrentLevel });
+                            currentTotalTimeMinutes += levelUpTimeRemainingMinutes;
+                            levelUpTimeRemainingMinutes = 0;
+                            break;
+                        } else {
+                            actionLog.push({ type: 'WAIT', durationMin: Math.round(timeToFullEnergy), reason: 'Energy Refill', currentTotalTimeMin: Math.round(currentTotalTimeMinutes + timeToFullEnergy), level: simulationCurrentLevel });
+                            currentTotalTimeMinutes += timeToFullEnergy;
+                            levelUpTimeRemainingMinutes -= timeToFullEnergy;
+                            currentEnergy = energyPerHunt;
+                        }
+                    }
+                    // If energy full and enough time left for a hunt
+                    if (currentEnergy === energyPerHunt && levelUpTimeRemainingMinutes >= huntDurationMinutes) {
+                        const currentSimYear = Math.floor(totalEnduranceConsumed / 100) + currentAge;
+                        const reductionPercent = Utils.getFibonacciReductionPercent(currentSimYear);
+                        const earningMultiplier = Math.max(0, 1 - (reductionPercent / 100));
+                        const sloveEarnedThisHunt = externalLeaderBaseSlovePerHunt * earningMultiplier;
+                        currentTotalTimeMinutes += huntDurationMinutes;
+                        levelUpTimeRemainingMinutes -= huntDurationMinutes;
+                        currentEnergy = 0;
+                        actionLog.push({ type: 'HUNT', level: simulationCurrentLevel, sloveEarned: parseFloat(sloveEarnedThisHunt.toFixed(2)), enduCost: parseFloat(externalLeaderEnduranceCost.toFixed(4)), currentTotalTimeMin: Math.round(currentTotalTimeMinutes) });
+                        currentSloveBalance += sloveEarnedThisHunt;
+                        totalEnduranceConsumed += externalLeaderEnduranceCost;
+                    } else {
+                        // Not enough time for another hunt, just wait out the rest
+                        if (levelUpTimeRemainingMinutes > 0) {
+                            actionLog.push({ type: 'WAIT', durationMin: Math.round(levelUpTimeRemainingMinutes), reason: 'Finish Level Up', currentTotalTimeMin: Math.round(currentTotalTimeMinutes + levelUpTimeRemainingMinutes), level: simulationCurrentLevel });
+                            currentTotalTimeMinutes += levelUpTimeRemainingMinutes;
+                            levelUpTimeRemainingMinutes = 0;
+                        }
+                    }
+                }
+                performedAction = true;
+            } else if (decision === 'HUNT') {
+                // Hunt to earn more SLOV
+                const currentSimYear = Math.floor(totalEnduranceConsumed / 100) + currentAge;
+                const reductionPercent = Utils.getFibonacciReductionPercent(currentSimYear);
+                const earningMultiplier = Math.max(0, 1 - (reductionPercent / 100));
+                const sloveEarnedThisHunt = externalLeaderBaseSlovePerHunt * earningMultiplier;
+                currentTotalTimeMinutes += huntDurationMinutes;
+                currentEnergy = 0;
+                actionLog.push({ type: 'HUNT', level: simulationCurrentLevel, sloveEarned: parseFloat(sloveEarnedThisHunt.toFixed(2)), enduCost: parseFloat(externalLeaderEnduranceCost.toFixed(4)), currentTotalTimeMin: Math.round(currentTotalTimeMinutes) });
+                currentSloveBalance += sloveEarnedThisHunt;
+                totalEnduranceConsumed += externalLeaderEnduranceCost;
+                performedAction = true;
+            }
+        }
+        return {
+            simulationCurrentLevel,
+            currentSloveBalance,
+            totalEnduranceConsumed,
+            currentEnergy,
+            currentTotalTimeMinutes,
+            actionLog
+        };
     }
 
     // --- Main Simulation Loop ---
@@ -299,58 +434,43 @@ export function simulateLevelingProcess(initialData, optimalDistributionToAdd, s
 
                     currentTotalTimeMinutes += huntDurationMinutes; currentEnergy = 0; // Add hunt time, consume energy
 
-                    actionLog.push({ type: 'HUNT', level: simulationCurrentLevel, sloveEarned: parseFloat(sloveEarnedThisHunt.toFixed(2)), enduCost: parseFloat(enduranceCost.toFixed(4)), currentTotalTimeMin: Math.round(currentTotalTimeMinutes), msg: `${simProficiency},${simRecovery}` });
+                    actionLog.push({ type: 'HUNT', level: simulationCurrentLevel, sloveEarned: parseFloat(sloveEarnedThisHunt.toFixed(2)), enduCost: parseFloat(enduranceCost.toFixed(4)), currentTotalTimeMin: Math.round(currentTotalTimeMinutes), prof: simProficiency, rec: simRecovery });
                     currentSloveBalance += sloveEarnedThisHunt; totalEnduranceConsumed += enduranceCost; actionLogged = true;
                 }
             } // End Leader Action
 
             // --- Alternate Scenario ---
             else if (scenario === 'nonLeader') {
-                let performedHunt = false; // Did we hunt this cycle?
-
-                if (decision === 'LEVEL_BOOST') {
-                    if (levelUpTimeRemainingMinutes === 0) { // Only boost if not already leveling
-                        currentSloveBalance -= (levelUpCostSlove + boostCost);
-                        actionLog.push({ type: 'LEVEL_BOOST', fromLevel: simulationCurrentLevel, toLevel: targetLevel, sloveCost: levelUpCostSlove, seedCost: levelUpCostSeed, boostCost: boostCost, currentTotalTimeMin: Math.round(currentTotalTimeMinutes) });
-                        simulationCurrentLevel++; levelUpTimeRemainingMinutes = 0;
-                        if (simulationCurrentLevel >= maxLevel) { actionLogged = true; continue; }
-                    }
-                    // Proceed to hunt
-                    const currentSimYear = Math.floor(totalEnduranceConsumed / 100) + currentAge; const reductionPercent = Utils.getFibonacciReductionPercent(currentSimYear); const earningMultiplier = Math.max(0, 1 - (reductionPercent / 100)); const sloveEarnedThisHunt = externalLeaderBaseSlovePerHunt * earningMultiplier;
-                    currentTotalTimeMinutes += huntDurationMinutes; currentEnergy = 0;
-                    actionLog.push({ type: 'HUNT', level: simulationCurrentLevel, sloveEarned: parseFloat(sloveEarnedThisHunt.toFixed(2)), enduCost: parseFloat(externalLeaderEnduranceCost.toFixed(4)), currentTotalTimeMin: Math.round(currentTotalTimeMinutes) });
-                    currentSloveBalance += sloveEarnedThisHunt; totalEnduranceConsumed += externalLeaderEnduranceCost;
-                    actionLogged = true; performedHunt = true;
-
-                } else if (decision === 'LEVEL_NORMAL') {
-                    if (levelUpTimeRemainingMinutes === 0) { // Only start level up if not already leveling
-                        currentSloveBalance -= levelUpCostSlove;
-                        actionLog.push({ type: 'LEVEL_NORMAL_START', fromLevel: simulationCurrentLevel, toLevel: targetLevel, sloveCost: levelUpCostSlove, seedCost: levelUpCostSeed, durationMin: levelUpTimeMinutes, currentTotalTimeMin: Math.round(currentTotalTimeMinutes) });
-                        simulationCurrentLevel++; levelUpTimeRemainingMinutes = levelUpTimeMinutes;
-                        if (simulationCurrentLevel >= maxLevel) { actionLogged = true; continue; }
-                    }
-                    // Proceed to hunt
-                    const currentSimYear = Math.floor(totalEnduranceConsumed / 100) + currentAge; const reductionPercent = Utils.getFibonacciReductionPercent(currentSimYear); const earningMultiplier = Math.max(0, 1 - (reductionPercent / 100)); const sloveEarnedThisHunt = externalLeaderBaseSlovePerHunt * earningMultiplier;
-                    currentTotalTimeMinutes += huntDurationMinutes; currentEnergy = 0;
-                    actionLog.push({ type: 'HUNT', level: simulationCurrentLevel, sloveEarned: parseFloat(sloveEarnedThisHunt.toFixed(2)), enduCost: parseFloat(externalLeaderEnduranceCost.toFixed(4)), currentTotalTimeMin: Math.round(currentTotalTimeMinutes) });
-                    currentSloveBalance += sloveEarnedThisHunt; totalEnduranceConsumed += externalLeaderEnduranceCost;
-                    actionLogged = true; performedHunt = true;
-
-                } else { // HUNT or WAIT_FOR_BOOST
-                    if (levelUpTimeRemainingMinutes > 0) {
-                        // Cannot hunt only if leveling, must wait (wait logged above)
-                        actionLogged = false; // No action this cycle except waiting
-                    } else {
-                        if (waitToBoostDecisionData) actionLog.push({ type: 'DECISION_WAIT_FOR_BOOST', ...waitToBoostDecisionData, currentTotalTimeMin: Math.round(currentTotalTimeMinutes) });
-                        // Hunt Only
-                        const currentSimYear = Math.floor(totalEnduranceConsumed / 100) + currentAge; const reductionPercent = Utils.getFibonacciReductionPercent(currentSimYear); const earningMultiplier = Math.max(0, 1 - (reductionPercent / 100)); const sloveEarnedThisHunt = externalLeaderBaseSlovePerHunt * earningMultiplier;
-                        currentTotalTimeMinutes += huntDurationMinutes; currentEnergy = 0;
-                        actionLog.push({ type: 'HUNT', level: simulationCurrentLevel, sloveEarned: parseFloat(sloveEarnedThisHunt.toFixed(2)), enduCost: parseFloat(externalLeaderEnduranceCost.toFixed(4)), currentTotalTimeMin: Math.round(currentTotalTimeMinutes) });
-                        currentSloveBalance += sloveEarnedThisHunt; totalEnduranceConsumed += externalLeaderEnduranceCost;
-                        actionLogged = true; performedHunt = true;
-                    }
-                }
-            } // End Alternate Action
+                // Use new helper for nonLeader
+                const result = simulateNonLeaderLevelingStep({
+                    simulationCurrentLevel,
+                    currentSloveBalance,
+                    totalEnduranceConsumed,
+                    currentEnergy,
+                    currentTotalTimeMinutes,
+                    actionLog,
+                    maxLevel,
+                    initialData,
+                    optimalDistributionToAdd,
+                    rarityInfo,
+                    useBoost,
+                    BOOST_WORTHINESS_THRESHOLD_MINUTES,
+                    externalLeaderBaseSlovePerHunt,
+                    externalLeaderEnduranceCost,
+                    energyPerHunt,
+                    singleEnergyRefillMinutes,
+                    huntDurationMinutes,
+                    fullRefillMinutes
+                });
+                if (result.error) return { error: result.error };
+                simulationCurrentLevel = result.simulationCurrentLevel;
+                currentSloveBalance = result.currentSloveBalance;
+                totalEnduranceConsumed = result.totalEnduranceConsumed;
+                currentEnergy = result.currentEnergy;
+                currentTotalTimeMinutes = result.currentTotalTimeMinutes;
+                actionLog = result.actionLog;
+                continue;
+            }
 
         } // End if(canStartNewAction)
 
