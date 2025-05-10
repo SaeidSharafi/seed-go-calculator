@@ -23,7 +23,17 @@
         :key="s.key"
         class="scenario-detail mb-6 bg-white/80 rounded-xl p-4 shadow-sm"
       >
-        <h4 class="font-semibold mb-2 flex items-center gap-1 text-green-800">
+        <h4
+          class="font-semibold mb-2 flex items-center gap-1 text-green-800 cursor-pointer select-none group"
+          @click="toggleOpen(s.key)"
+          :aria-expanded="openStates[s.key]"
+          :aria-controls="'scenario-' + s.key"
+          title="Toggle details"
+        >
+          <span class="mr-2 group-hover:scale-110 transition-transform">
+            <span v-if="openStates[s.key]">▼</span>
+            <span v-else>►</span>
+          </span>
           <svg
             class="w-4 h-4 text-green-400"
             fill="none"
@@ -45,77 +55,198 @@
             >Normal</span
           >
         </h4>
-        <div
-          v-if="
-            scenarioResults[s.key] &&
-            scenarioResults[s.key].actionLog &&
-            scenarioResults[s.key].actionLog.length
-          "
-        >
-          <ol class="list-decimal list-inside space-y-1">
-            <li
-              v-for="(action, idx) in scenarioResults[s.key].actionLog"
-              :key="idx"
-              :class="getActionClass(action)"
-            >
-              <span v-if="action.type === 'HUNT'">
-                Level {{ action.level }}: Hunted (Earned
-                {{ action.sloveEarned }} SLOV, Used {{ action.enduCost }} ENDU)
-                <span class="block">Profeciency points: 
-                  <span class="text-red-600 font-bold">{{ action.prof }}</span>
-                </span>
-                <span class="block">Recovery Points: 
-                  <span class="text-red-600 font-bold">{{ action.rec }}</span>
-                </span>
-              </span>
-              <span v-else-if="action.type === 'LEVEL_NORMAL_START'">
-                Level {{ action.fromLevel }} → {{ action.toLevel }}: Started
-                Normal Level Up (Cost {{ action.sloveCost }} SLOV +
-                {{ action.seedCost }} SEED, Duration
-                {{ utils.formatTimeDH(action.durationMin) }})
-              </span>
-              <span v-else-if="action.type === 'LEVEL_BOOST'">
-                Level {{ action.fromLevel }} → {{ action.toLevel }}:
-                <strong class="text-blue-700">Boosted Level Up!</strong>
-                (Cost {{ action.sloveCost }} SLOV + {{ action.seedCost }} SEED +
-                {{ action.boostCost }} Boost SLOV)
-              </span>
-              <span v-else-if="action.type === 'DECISION_WAIT_FOR_BOOST'">
-                <strong class="text-yellow-700"
-                  >Strategy Decision (at Lv {{ action.atLevel }} targeting Lv
-                  {{ action.targetLevel }}): Chose to Wait/Hunt (est.
-                  {{ utils.formatTimeDH(action.waitTimeEstMin) }}) instead of
-                  Normal Level Up ({{
-                    utils.formatTimeDH(action.normalTimeMin)
-                  }}) to afford boost.</strong
+        <div v-show="openStates[s.key]">
+          <div
+            v-if="
+              scenarioResults[s.key] &&
+              scenarioResults[s.key].actionLog &&
+              scenarioResults[s.key].actionLog.length
+            "
+          >
+            <ul class="list-inside space-y-1 !p-0">
+              <li
+                v-for="(action, idx) in scenarioResults[s.key].actionLog"
+                :key="idx"
+                :class="getActionClass(action)"
+                class="!p-0"
+              >
+                <div
+                  class="grid grid-cols-6 items-stretch"
+                  v-if="action.type === 'HUNT'"
                 >
-              </span>
-              <span v-else-if="action.type === 'WAIT'">
-                Waited {{ utils.formatTimeDH(action.durationMin) }} ({{
-                  action.reason
-                }})
-              </span>
-              <span v-else> Unknown Action: {{ action }} </span>
-              <span class="text-xs text-gray-500 ml-2">
-                (Time: {{ utils.formatTimeDH(action.currentTotalTimeMin) }})
-              </span>
-            </li>
-          </ol>
-        </div>
-        <div v-else>
-          <p class="text-gray-500">No actions recorded for this scenario.</p>
+                  <div
+                    class="flex items-center col-span-1 font-bold text-lg bg-red-400 px-2 rounded-tl"
+                  >
+                    HUNT
+                  </div>
+                  <div class="col-span-4 flex gap-2 p-2">
+                    <Badge label="Level" :value="action.level" color="blue" />
+                    <Badge
+                      label=""
+                      :value="'+' + action.sloveEarned + 'SLove'"
+                      color="green"
+                    />
+                    <Badge
+                      :label="'-' + action.enduCost"
+                      value="Endurance"
+                      color="red"
+                    />
+                    <Badge
+                      v-if="s.key !== 'nonLeader' && s.key !== 'nonLeaderBoosted'"
+                      label="Stats: "
+                      :value="`P:${action.prof} R:${action.rec}`"
+                      color="blue"
+                    />
+                  </div>
+                  <span class="text-xs text-gray-500 ml-2 self-center">
+                    <IconClock class="w-4 h-4 inline-block" />
+                    {{ utils.formatTimeDH(action.currentTotalTimeMin) }}
+                  </span>
+                </div>
+                <div
+                  class="grid grid-cols-6 items-stretch"
+                  v-else-if="action.type === 'LEVEL_NORMAL_START'"
+                >
+                  <div
+                    class="flex items-center col-span-1 font-bold text-lg bg-green-400 px-2 rounded-tl"
+                  >
+                    Level-up
+                  </div>
+                  <div class="col-span-4 flex gap-2 p-2">
+                    <Badge
+                      label="Level"
+                      :value="`${action.fromLevel} -> ${action.toLevel}`"
+                      color="green"
+                    />
+                    <Badge
+                      label=""
+                      :value="'-' + action.sloveCost + ' SLove'"
+                      color="red"
+                    />
+                    <Badge
+                      label=""
+                      :value="'-' + action.seedCost + ' SEED'"
+                      color="red"
+                    />
+
+                    <Badge
+                      label="Duration: "
+                      :value="utils.formatTimeDH(action.durationMin)"
+                      color="green"
+                    />
+                  </div>
+                  <span class="text-xs text-gray-500 ml-2 self-center">
+                    <IconClock class="w-4 h-4 inline-block" />
+                    {{ utils.formatTimeDH(action.currentTotalTimeMin) }}
+                  </span>
+                </div>
+                <div
+                  class="grid grid-cols-6 items-stretch"
+                  v-else-if="action.type === 'LEVEL_BOOST'"
+                >
+                  <div
+                    class="flex items-center col-span-1 font-bold text-xs bg-purple-400 px-2 rounded-tl"
+                  >
+                    Lvl-up Boosted
+                  </div>
+                  <div class="col-span-4 flex gap-2 p-2">
+                    <Badge
+                      label=""
+                      :value="`${action.fromLevel} -> ${action.toLevel}`"
+                      color="green"
+                    />
+                    <Badge
+                      label=""
+                      :value="'-' + action.sloveCost + ' SLove'"
+                      color="green"
+                    />
+
+                    <Badge
+                      label=""
+                      :value="'-' + action.seedCost + ' SEED'"
+                      color="red"
+                    />
+                    <Badge
+                      label="Boosted"
+                      :value="'-' + action.boostCost + ' SLove'"
+                      color="red"
+                    />
+                  </div>
+                  <span class="text-xs text-gray-500 ml-2 self-center">
+                    <IconClock class="w-4 h-4 inline-block" />
+                    {{ utils.formatTimeDH(action.currentTotalTimeMin) }}
+                  </span>
+                </div>
+                <div
+                  class="flex gap-2"
+                  v-else-if="action.type === 'DECISION_WAIT_FOR_BOOST'"
+                >
+                  <strong class="text-yellow-700"
+                    >Strategy Decision (at Lv {{ action.atLevel }} targeting Lv
+                    {{ action.targetLevel }}): Chose to Wait/Hunt (est.
+                    {{ utils.formatTimeDH(action.waitTimeEstMin) }}) instead of
+                    Normal Level Up ({{
+                      utils.formatTimeDH(action.normalTimeMin)
+                    }}) to afford boost.</strong
+                  >
+                </div>
+                <div
+                  class="grid grid-cols-6 items-stretch"
+                  v-else-if="action.type === 'WAIT'"
+                >
+                  <div
+                    class="flex items-center col-span-1 font-bold text-lg bg-gray-400 px-2 rounded-tl w-full"
+                  >
+                    WAIT
+                  </div>
+                  <div class="col-span-4 flex gap-2 p-2">
+                    <Badge
+                      :label="action.reason"
+                      :value="utils.formatTimeDH(action.durationMin)"
+                      color="green"
+                    />
+                  </div>
+                  <span class="text-xs text-gray-500 ml-2 self-center">
+                    <IconClock class="w-4 h-4 inline-block" />
+                    {{ utils.formatTimeDH(action.currentTotalTimeMin) }}
+                  </span>
+                </div>
+                <span v-else> Unknown Action: {{ action }} </span>
+              </li>
+            </ul>
+          </div>
+          <div v-else>
+            <p class="text-gray-500">No actions recorded for this scenario.</p>
+          </div>
         </div>
       </div>
     </div>
   </div>
 </template>
 <script setup>
+import { ref } from "vue";
+import { IconClock } from "@tabler/icons-vue";
+import Badge from "./Badge.vue";
+
 const props = defineProps({
   scenarioResults: Object,
   utils: Object,
 });
 
+// Collapsible state for each scenario key
+const openStates = ref({
+  leader: false,
+  leaderBoosted: false,
+  nonLeader: false,
+  nonLeaderBoosted: false,
+});
+
+function toggleOpen(key) {
+  openStates.value[key] = !openStates.value[key];
+}
+
 function getActionClass(action) {
+  return "bg-gray-100 rounded px-2 py-1 mb-1 overflow-hidden"; // default class
   if (action.type === "HUNT") return "bg-purple-200 rounded px-2 py-1 mb-1"; // "we have no money"
   if (action.type === "LEVEL_NORMAL_START" || action.type === "LEVEL_BOOST")
     return "bg-green-200 rounded px-2 py-1 mb-1"; // "good color"
