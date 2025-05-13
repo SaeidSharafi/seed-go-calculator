@@ -48,7 +48,7 @@
           >
             <td class="p-2">Year {{ year.age }}</td>
             <td class="p-2">Lv {{ year.level }}</td>
-            <td class="p-2">{{ year.slovePerHunt }}</td>
+            <td class="p-2">{{ year.grossSlovePerHunt }}</td>
             <td class="p-2">{{ year.endurancePerHunt }}</td>
             <td class="p-2">{{ year.recoveryCostPerhunt }}</td>
             <td class="p-2">{{ year.huntsInYear }}</td>
