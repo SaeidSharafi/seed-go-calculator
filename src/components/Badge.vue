@@ -20,6 +20,7 @@ const colorClasses = {
   blue: "bg-blue-200 text-blue-800",
   red: "bg-red-200 text-red-800",
   yellow: "bg-yellow-200 text-yellow-800",
+  orange: "bg-orange-200 text-orange-800",
 };
 
 const badgeClass = `inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${

@@ -69,14 +69,13 @@
                 class="!p-0"
               >
                 <div
-                  class="grid grid-cols-6 items-stretch"
+                  class="md:grid grid-cols-6 items-stretch flex flex-col"
                   v-if="action.type === 'HUNT'"
                 >
                   <div
                     class="flex items-center col-span-1 font-bold text-lg bg-red-400 px-2 rounded-tl"
                   >
                     HUNT
-                    <span class="text-xs ml-1">({{ action.huntedBy }})</span>
                   </div>
                   <div class="col-span-4 flex flex-wrap gap-2 p-2">
                     <Badge label="Level" :value="action.level" color="blue" />
@@ -133,7 +132,8 @@
                       color="yellow"
                     />
                     <Badge
-                      label="Unrec. Leader"
+                     v-if="s.key === 'leader'"
+                      label="Unrecovered Endurance"
                       :value="
                         utils.formatNumber(
                           action.unrecoveredEnduranceByLeaderAfterHunt,
@@ -143,7 +143,8 @@
                       color="pink"
                     />
                     <Badge
-                      label="Unrec. Delegate"
+                    v-else
+                      label="Unrecovered Endurance"
                       :value="
                         utils.formatNumber(
                           action.unrecoveredEnduranceByDelegateAfterHunt,
@@ -163,13 +164,13 @@
                       color="blue"
                     />
                   </div>
-                  <span class="text-xs text-gray-500 ml-2 self-center">
+                  <span class="text-xs text-gray-500 md:ml-2 text-center self-center bg-gray-100 w-full md:w-auto md:bg-none">
                     <IconClock class="w-4 h-4 inline-block" />
                     {{ utils.formatTimeDH(action.timeElapsedMin) }}
                   </span>
                 </div>
                 <div
-                  class="grid grid-cols-6 items-stretch"
+                  class="md:grid grid-cols-6 items-stretch flex flex-col"
                   v-else-if="action.type === 'NORMAL_LEVEL_UP'"
                 >
                   <div
@@ -177,9 +178,9 @@
                   >
                     Level-up
                   </div>
-                  <div class="col-span-4 flex gap-2 p-2">
+                  <div class="col-span-4 flex gap-2 p-2  flex-wrap ">
                     <Badge
-                      label="Level"
+                      label=""
                       :value="`${action.fromLevel} -> ${action.toLevel}`"
                       color="green"
                     />
@@ -199,13 +200,13 @@
                       color="green"
                     />
                   </div>
-                  <span class="text-xs text-gray-500 ml-2 self-center">
+                  <span class="text-xs text-gray-500 md:ml-2 text-center self-center bg-gray-100 w-full md:w-auto md:bg-none">
                     <IconClock class="w-4 h-4 inline-block" />
                     {{ utils.formatTimeDH(action.timeElapsedMin) }}
                   </span>
                 </div>
                 <div
-                  class="grid grid-cols-6 items-stretch"
+                  class="md:grid grid-cols-6 items-stretch flex flex-col"
                   v-else-if="action.type === 'BOOSTED_LEVEL_UP'"
                 >
                   <div
@@ -213,10 +214,10 @@
                   >
                     Lvl-up Boosted
                   </div>
-                  <div class="col-span-4 flex gap-2 p-2">
+                  <div class="col-span-4  flex-wrap  flex gap-2 p-2">
                     <Badge
                       label=""
-                      :value="`${action.fromLevel} -> ${action.toLevel}`"
+                      :value="`${action.level -1 } -> ${action.level}`"
                       color="green"
                     />
                     <Badge
@@ -235,13 +236,13 @@
                       color="red"
                     />
                   </div>
-                  <span class="text-xs text-gray-500 ml-2 self-center">
+                  <span class="text-xs text-gray-500 md:ml-2 text-center self-center bg-gray-100 w-full md:w-auto md:bg-none">
                     <IconClock class="w-4 h-4 inline-block" />
                     {{ utils.formatTimeDH(action.timeElapsedMin) }}
                   </span>
                 </div>
                 <div
-                  class="grid grid-cols-6 items-stretch"
+                  class="md:grid grid-cols-6 items-stretch flex flex-col"
                   v-else-if="action.type === 'WAIT_FOR_ENERGY'"
                 >
                   <div
@@ -249,7 +250,7 @@
                   >
                     WAIT
                   </div>
-                  <div class="col-span-4 flex gap-2 p-2">
+                  <div class="col-span-4 flex gap-2 p-2  flex-wrap ">
                     <Badge
                       :label="action.reason"
                       :value="utils.formatTimeDH(action.durationMin)"
@@ -261,20 +262,20 @@
                       color="blue"
                     />
                   </div>
-                  <span class="text-xs text-gray-500 ml-2 self-center">
+                  <span class="text-xs text-gray-500 md:ml-2 text-center self-center bg-gray-100 w-full md:w-auto md:bg-none">
                     <IconClock class="w-4 h-4 inline-block" />
                     {{ utils.formatTimeDH(action.timeElapsedMin) }}
                   </span>
                 </div>
                 <div
-                  class="flex gap-2 items-center"
+                  class="md:grid grid-cols-6 items-stretch flex flex-col"
                   v-else-if="action.type === 'INITIAL_STATE'"
                 >
                   <strong class="text-blue-700"
                     >Simulation Start: Level {{ action.level }}, Slove
                     {{ action.sloveBalance }}</strong
                   >
-                  <span class="text-xs text-gray-500 ml-2 self-center">
+                  <span class="text-xs text-gray-500 md:ml-2 text-center self-center bg-gray-100 w-full md:w-auto md:bg-none">
                     <IconClock class="w-4 h-4 inline-block mr-1" />
                     {{ utils.formatTimeDH(action.timeElapsedMin) }}
                   </span>
