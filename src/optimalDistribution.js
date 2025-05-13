@@ -1,4 +1,4 @@
-import * as Utils from './utils.js'; 
+import * as Utils from './utils.js';
 import { simulateLevelingProcess } from './simulateLeveling.js';
 
 
@@ -50,7 +50,7 @@ function calculateSimulatedStatsForHunt(initialData, rarityInfo, simulatedLevel,
  * of proficiency and recovery points.
  */
 function simulateAllocationRun(initialData, targetAge, rarityInfo, allocation, bonusPointsAlreadySpent, remainingBonusPointsToAllocate) {
-    const { currentLevel, maxLevel, currentAge, currentEdurance, className, energyPerHunt } = initialData;
+    const { currentLevel, maxLevel, currentAge, currentEdurance, className, energyPerHunt, rarityName } = initialData; // Added rarityName
     const targetCumulativeEnduranceOverall = (targetAge - currentAge) * 100; // Target total endurance for aging
 
     // --- Simulation State ---
@@ -58,7 +58,9 @@ function simulateAllocationRun(initialData, targetAge, rarityInfo, allocation, b
     let currentTotalSloveEarned = 0;
     let yearlyBreakdown = [];
     let currentYearEndurance = 0; // Endurance consumed within the current simulated year
-    let currentYearEarnings = 0;
+    let currentYearEarnings = 0; // This tracks NET earnings for the year
+    let currentYearGrossEarnings = 0; // To track GROSS earnings for the year
+    let currentYearRecoveryCost = 0;
     let simulatedLevel = currentLevel;
     let currentSloveBalance = 0;
     let nextLevelCost = (simulatedLevel < maxLevel) ? Utils.getSloveLevelUpCost(simulatedLevel + 1) : Infinity;
@@ -81,7 +83,6 @@ function simulateAllocationRun(initialData, targetAge, rarityInfo, allocation, b
         const enduranceCostForThisHunt = Utils.calculateEnduranceConsumedPerHuntAction(simRecovery, energyPerHunt);
         if (!isFinite(enduranceCostForThisHunt) || enduranceCostForThisHunt <= 0) {
             isValidRun = false;
-            // console.warn(`Invalid endurance cost (${enduranceCostForThisHunt}) at L${simulatedLevel} for allocation P:${allocation.proficiencyBonusToAdd}/R:${allocation.recoveryBonusToAdd}. Skipping.`);
             break; // Stop this simulation run
         }
 
@@ -98,13 +99,19 @@ function simulateAllocationRun(initialData, targetAge, rarityInfo, allocation, b
         const reductionPercent = Utils.getFibonacciReductionPercent(yearForThisHunt);
         const earningMultiplier = 1 - (reductionPercent / 100);
         const currentBaseSlove = Utils.calculateBaseSlovePerHuntAction(simProficiency, className, energyPerHunt);
-        const sloveEarned = currentBaseSlove * earningMultiplier;
+        const grossSloveEarned = currentBaseSlove * earningMultiplier;
 
-        currentSloveBalance += sloveEarned;
-        currentTotalSloveEarned += sloveEarned;
+        // Calculate Slov Recovery Cost for this hunt
+        const slovRecoveryCostForHunt = Utils.calculateSlovRecoveryCost(enduranceCostForThisHunt, rarityName, simulatedLevel);
+        const netSloveEarned = grossSloveEarned - slovRecoveryCostForHunt;
+
+        currentSloveBalance += netSloveEarned;
+        currentTotalSloveEarned += netSloveEarned;
 
         // Track Yearly Earnings/Endurance
-        currentYearEarnings += sloveEarned;
+        currentYearGrossEarnings += grossSloveEarned; // Accumulate gross earnings
+        currentYearEarnings += netSloveEarned; // Accumulate net earnings
+        currentYearRecoveryCost += slovRecoveryCostForHunt;
         const enduranceThisYearSegment = cumulativeEnduranceConsumed - Math.max(enduranceConsumedBeforeHunt, (yearForThisHunt - currentAge) * 100);
         currentYearEndurance += enduranceThisYearSegment;
 
@@ -122,22 +129,28 @@ function simulateAllocationRun(initialData, targetAge, rarityInfo, allocation, b
         const endOfSimulation = cumulativeEnduranceConsumed >= targetCumulativeEnduranceOverall;
         if (yearAfterHunt > yearForThisHunt || endOfSimulation) {
             const huntsInYear = Math.max(1, Math.round(currentYearEndurance / enduranceCostForThisHunt)); // Estimate based on last cost, could average
-            const avgSlovePerHuntInYear = (huntsInYear > 0) ? currentYearEarnings / huntsInYear : 0;
+            const avgNetSlovePerHuntInYear = (huntsInYear > 0) ? currentYearEarnings / huntsInYear : 0;
+            const avgGrossSlovePerHuntInYear = (huntsInYear > 0) ? currentYearGrossEarnings / huntsInYear : 0;
+            const avgRecoveryCostInYear = (huntsInYear > 0) ? currentYearRecoveryCost / huntsInYear : 0;
             const avgEndurancePerHuntInYear = (huntsInYear > 0) ? currentYearEndurance / huntsInYear : enduranceCostForThisHunt;
 
             yearlyBreakdown.push({
                 age: yearForThisHunt,
                 level: simulatedLevel,
-                slovePerHunt: parseFloat(avgSlovePerHuntInYear.toFixed(2)),
+                slovePerHunt: parseFloat(avgNetSlovePerHuntInYear.toFixed(2)), // This is avg net slove per hunt
+                grossSlovePerHunt: parseFloat(avgGrossSlovePerHuntInYear.toFixed(2)), // Avg gross slove per hunt
+                recoveryCostPerhunt: parseFloat(avgRecoveryCostInYear.toFixed(2)),
                 endurancePerHunt: parseFloat(avgEndurancePerHuntInYear.toFixed(4)),
                 huntsInYear: huntsInYear,
-                totalSloveInYear: parseFloat(currentYearEarnings.toFixed(2)),
+                totalSloveInYear: parseFloat(currentYearEarnings.toFixed(2)), // This is total net slove in year
                 sloveBalance: parseFloat(currentSloveBalance.toFixed(2))
             });
 
             if (!endOfSimulation) {
                 currentYearEndurance = 0; // Reset for next year
                 currentYearEarnings = 0;
+                currentYearGrossEarnings = 0; // Reset gross earnings for next year
+                currentYearRecoveryCost = 0; // Reset recovery cost for next year
             }
         }
 
@@ -164,7 +177,7 @@ function simulateAllocationRun(initialData, targetAge, rarityInfo, allocation, b
 function simulateSingleHuntScenario(initialData, rarityInfo, remainingBonusPointsToAllocate) {
     const { currentAge, currentLevel, maxLevel, className, energyPerHunt, rarityName } = initialData;
 
-    let bestSloveForSingleHunt = -1;
+    let bestNetSloveForSingleHunt = -Infinity; // Changed variable name and initial value
     let bestAllocation = null;
     let bestSingleHuntDetails = null;
 
@@ -183,27 +196,33 @@ function simulateSingleHuntScenario(initialData, rarityInfo, remainingBonusPoint
 
         const reductionPercent = Utils.getFibonacciReductionPercent(currentAge);
         const earningMultiplier = 1 - (reductionPercent / 100);
-        const sloveEarned = baseSlovePerHuntAction * earningMultiplier;
+        const grossSloveEarned = baseSlovePerHuntAction * earningMultiplier;
 
-        if (sloveEarned > bestSloveForSingleHunt) {
-            bestSloveForSingleHunt = sloveEarned;
+        // Calculate Slov Recovery Cost for this single hunt
+        const slovRecoveryCostForSingleHunt = Utils.calculateSlovRecoveryCost(enduranceConsumedPerHuntAction, rarityName, maxLevel);
+        const netSloveEarned = grossSloveEarned - slovRecoveryCostForSingleHunt;
+
+        if (netSloveEarned > bestNetSloveForSingleHunt) {
+            bestNetSloveForSingleHunt = netSloveEarned;
             bestAllocation = allocation;
             bestSingleHuntDetails = {
                 finalStats: { totalProficiency: finalTotalProficiency, totalRecovery: finalTotalRecovery },
                 yearlyBreakdown: [{
                     age: currentAge,
                     level: maxLevel, // Assume target level reached instantly for display
-                    slovePerHunt: parseFloat(sloveEarned.toFixed(2)),
+                    slovePerHunt: parseFloat(netSloveEarned.toFixed(2)), // Use net
+                    grossSlovePerHunt: parseFloat(grossSloveEarned.toFixed(2)), // Gross slove for the hunt
+                    recoveryCostPerhunt: parseFloat(slovRecoveryCostForSingleHunt.toFixed(2)),
                     endurancePerHunt: parseFloat(enduranceConsumedPerHuntAction.toFixed(4)),
                     huntsInYear: 1,
-                    totalSloveInYear: parseFloat(sloveEarned.toFixed(2))
+                    totalSloveInYear: parseFloat(netSloveEarned.toFixed(2)) // Use net
                 }],
                 agingOutcome: {
                     enduranceConsumedPerHuntAction: parseFloat(enduranceConsumedPerHuntAction.toFixed(4)),
                     huntsToReachTargetAge: 1,
                     baseSlovePerHuntActionAtMaxLevel: parseFloat(baseSlovePerHuntAction.toFixed(2)),
-                    maxTotalSloveEarnedByTargetAge: parseFloat(sloveEarned.toFixed(2)), // For this single hunt
-                    slovRecoveryCostPerHuntActionAtMaxLevel: Utils.calculateSlovRecoveryCostPerHuntAction(enduranceConsumedPerHuntAction, rarityName, maxLevel)
+                    maxTotalSloveEarnedByTargetAge: parseFloat(netSloveEarned.toFixed(2)), // Use net
+                    slovRecoveryCostPerHuntActionAtMaxLevel: slovRecoveryCostForSingleHunt
                 },
                 timeToLevelUpMinutes: null, // Cannot level in 1 hunt
                 timeToTargetAgeMinutes: 24 * 60 // Time for one cycle
@@ -217,7 +236,7 @@ function simulateSingleHuntScenario(initialData, rarityInfo, remainingBonusPoint
 /**
  * Formats the final simulation results into the desired output object.
  */
- function formatOutputData(initialData, targetAge, bestAllocation, bestSimResult, leaderResult) {
+function formatOutputData(initialData, targetAge, bestAllocation, bestSimResult) {
     const { rarityName, className, energyPerHunt, currentLevel, maxLevel } = initialData;
 
     // Calculate final display stats based on the BEST allocation found
@@ -225,7 +244,7 @@ function simulateSingleHuntScenario(initialData, rarityInfo, remainingBonusPoint
     const finalTotalRecovery = initialData.currentTotalRecovery + bestAllocation.recoveryBonusToAdd;
     const finalEnduranceCost = Utils.calculateEnduranceConsumedPerHuntAction(finalTotalRecovery, energyPerHunt);
     const finalBaseSlove = Utils.calculateBaseSlovePerHuntAction(finalTotalProficiency, className, energyPerHunt);
-    const finalSlovRecoveryCost = Utils.calculateSlovRecoveryCostPerHuntAction(finalEnduranceCost, rarityName, maxLevel);
+    const finalSlovRecoveryCost = Utils.calculateSlovRecoveryCost(finalEnduranceCost, rarityName, maxLevel);
 
     const agingOutcome = {
         enduranceConsumedPerHuntAction: parseFloat(finalEnduranceCost.toFixed(4)),
@@ -247,10 +266,8 @@ function simulateSingleHuntScenario(initialData, rarityInfo, remainingBonusPoint
             totalProficiency: finalTotalProficiency,
             totalRecovery: finalTotalRecovery
         },
-        levelingSimulation: leaderResult, // Result from external function
         earningsOutcome: agingOutcome,
         yearlyBreakdown: bestSimResult.yearlyBreakdown,
-        timeToLevelUp: Utils.formatTimeDH(leaderResult.totalLevelingMinutes),
         timeToTargetAge: Utils.formatTimeDH(bestSimResult.totalSimulatedMinutes),
     };
 }
@@ -279,28 +296,19 @@ export function findOptimalDistributionAndSimulate(initialData, targetAge = 7) {
     if (targetAge === currentAge) {
         const { bestAllocation, bestSingleHuntDetails } = simulateSingleHuntScenario(initialData, rarityInfo, remainingBonusPointsToAllocate);
 
-        if (!bestAllocation) {
-            return { error: `Could not find a valid allocation for a single hunt at age ${currentAge}. Check Recovery calculation.` };
+        if (!bestAllocation || !bestSingleHuntDetails) { // Added check for bestSingleHuntDetails
+            return { error: `Could not find a valid allocation for a single hunt at age ${currentAge}. Check Recovery calculation or if any profitable hunt is possible.` };
         }
-
-        // Call leader simulation (though likely trivial for single hunt)
-         let leaderResult;
-         try {
-            leaderResult = simulateLevelingProcess(initialData, bestAllocation, 'leader');
-         } catch (e) {
-             console.error("Error calling simulateLevelingProcess for single hunt:", e);
-             leaderResult = { error: "Failed to run leader simulation." };
-         }
 
         // Format and return result for single hunt
         return formatOutputData(initialData, targetAge, bestAllocation, {
-            // Map single hunt details to the structure expected by formatOutputData
             huntCounter: 1,
             totalSloveEarned: bestSingleHuntDetails.agingOutcome.maxTotalSloveEarnedByTargetAge,
             yearlyBreakdown: bestSingleHuntDetails.yearlyBreakdown,
             timeToLevelUpMinutes: bestSingleHuntDetails.timeToLevelUpMinutes,
-            totalSimulatedMinutes: bestSingleHuntDetails.timeToTargetAgeMinutes
-        }, leaderResult);
+            totalSimulatedMinutes: bestSingleHuntDetails.timeToTargetAgeMinutes,
+            finalSimulatedLevel: maxLevel // For single hunt, assume max level for consistency if leveled
+        });
     }
 
     // --- Find Optimal Allocation via Iteration ---
@@ -317,7 +325,7 @@ export function findOptimalDistributionAndSimulate(initialData, targetAge = 7) {
             initialData, targetAge, rarityInfo, currentAllocation,
             bonusPointsAlreadySpent, remainingBonusPointsToAllocate
         );
-    
+
         // Compare with the best result found so far
         if (simResult.isValidRun && simResult.totalSloveEarned > maxTotalSloveEarned) {
             maxTotalSloveEarned = simResult.totalSloveEarned;
@@ -328,22 +336,8 @@ export function findOptimalDistributionAndSimulate(initialData, targetAge = 7) {
 
     // --- Final Checks and Post-processing ---
     if (!bestAllocationFound) {
-       
-        
         return { error: `Could not find any valid allocation for Prof/Rec points that allows aging to level ${maxLevel} and age ${targetAge} (potentially due to invalid endurance costs during simulation).` };
     }
-
-    // Call the external leader simulation with the best allocation
-    let leaderResult;
-    console.log(bestAllocationFound);
-    
-    try {
-        leaderResult = simulateLevelingProcess(initialData, bestAllocationFound, 'leader');
-    } catch (e) {
-        console.error("Error calling simulateLevelingProcess:", e);
-        leaderResult = { error: "Failed to run leader simulation." };
-    }
-
     // --- Format and Return Output ---
-    return formatOutputData(initialData, targetAge, bestAllocationFound, bestSimulationResult, leaderResult);
+    return formatOutputData(initialData, targetAge, bestAllocationFound, bestSimulationResult);
 }

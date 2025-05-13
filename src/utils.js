@@ -1,4 +1,4 @@
-import {ENDURANCE_COST_MULTIPLIER,LEVEL_UP_DATA,RARITY_DATA, FIBONACCI_REDUCTION_PERCENT,BOOST_COST_DATA} from './data.js'
+import { ENDURANCE_COST_MULTIPLIER, LEVEL_UP_DATA, RARITY_DATA, FIBONACCI_REDUCTION_PERCENT, BOOST_COST_DATA } from './data.js'
 
 export function clamp(num, min, max) {
     return Math.max(min, Math.min(num, max));
@@ -32,15 +32,20 @@ export function calculateEnduranceConsumedPerHuntAction(totalRecoveryPoints, ene
     if (energyPerHunt <= 0) return 0;
     return parseFloat(((15 / Math.pow(totalRecoveryPoints, 0.65)) * energyPerHunt).toFixed(6));
 }
+export function formatNumber(num) {
+    if (num === null || num === undefined) return "N/A";
+    if (!isFinite(num)) return "Infinite";
+    return num.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
 
 export function calculateBaseSlovePerHuntAction(totalProficiencyPoints, className, energyPerHunt) {
     if (totalProficiencyPoints <= 0 || energyPerHunt <= 0) return 0;
     return parseFloat((getClassCoefficient(className) * Math.sqrt(totalProficiencyPoints) * energyPerHunt).toFixed(2));
 }
 
-export function calculateSlovRecoveryCostPerHuntAction(enduranceConsumedThisHunt, rarityName, level) {
+export function calculateSlovRecoveryCost(enduranceConsumed, rarityName, level) {
     const coeff = ENDURANCE_COST_MULTIPLIER[rarityName]?.[level.toString()] ?? 0;
-    return parseFloat((enduranceConsumedThisHunt * coeff).toFixed(2));
+    return parseFloat((enduranceConsumed * coeff).toFixed(2));
 }
 
 export function formatTimeDH(totalMinutes) {
@@ -49,7 +54,8 @@ export function formatTimeDH(totalMinutes) {
     const totalHours = totalMinutes / 60;
     const days = Math.floor(totalHours / 24);
     const hours = Math.floor(totalHours % 24);
-    return `${days}d ${hours}h`;
+    const mins = Math.floor(totalMinutes % 60);
+    return `${days}d ${hours}h ${mins}m`;
 }
 export function getLevelUpTimeHours(level) {
     const data = LEVEL_UP_DATA.find(item => parseInt(item.level) === level);
@@ -60,7 +66,7 @@ export function getBoostCost(targetLevel) {
     const boostData = BOOST_COST_DATA.find(data => data.level === targetLevel);
     if (boostData) {
         const cost = parseFloat(boostData.slove);
-        return isFinite(cost) ? cost : 0; 
+        return isFinite(cost) ? cost : 0;
     }
 
     return 0;

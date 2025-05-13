@@ -27,6 +27,7 @@
             <th class="p-2 font-semibold">SLOV (Lvl)</th>
             <th class="p-2 font-semibold">SLOV (Boost)</th>
             <th class="p-2 font-semibold">SEED</th>
+            <th class="p-2 font-semibold">SLOV (Recovery)</th>
             <th class="p-2 font-semibold">Net SLOV</th>
             <th class="p-2 font-semibold">Total Time</th>
           </tr>
@@ -35,9 +36,7 @@
           <tr
             v-for="s in [
               { key: 'leader', label: 'Leader' },
-              { key: 'leaderBoosted', label: 'Leader' },
               { key: 'nonLeader', label: 'non-Leader' },
-              { key: 'nonLeaderBoosted', label: 'non-Leader' },
             ]"
             :key="s.key"
             class="even:bg-blue-50 hover:bg-blue-100 transition font-mono"
@@ -66,6 +65,9 @@
               </td>
               <td class="p-2 font-mono">
                 {{ scenarioResults[s.key].totalSeedSpentOnLeveling ?? "N/A" }}
+              </td>
+              <td class="p-2 font-mono">
+                {{ scenarioResults[s.key].totalRecoveryCost ?? "N/A" }}
               </td>
               <td class="p-2 font-mono">
                 {{ scenarioResults[s.key].netSloveAfterLevelingCosts ?? "N/A" }}

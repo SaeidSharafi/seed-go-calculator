@@ -224,10 +224,10 @@
             >Leader Rarity:</label
           >
           <select
-            v-model="form.leaderType"
+            v-model="form.leaderRarityName"
             @change="
               updateInputsForRarity(
-                form.leaderType,
+                form.leaderRarityName,
                 'leaderProficiency',
                 'leaderRecovery'
               )

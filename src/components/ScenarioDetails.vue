@@ -16,9 +16,7 @@
       <div
         v-for="s in [
           { key: 'leader', label: 'Leader' },
-          { key: 'leaderBoosted', label: 'Leader' },
           { key: 'nonLeader', label: 'non-Leader' },
-          { key: 'nonLeaderBoosted', label: 'non-Leader' },
         ]"
         :key="s.key"
         class="scenario-detail mb-6 bg-white/80 rounded-xl p-4 shadow-sm"
@@ -78,34 +76,101 @@
                     class="flex items-center col-span-1 font-bold text-lg bg-red-400 px-2 rounded-tl"
                   >
                     HUNT
+                    <span class="text-xs ml-1">({{ action.huntedBy }})</span>
                   </div>
-                  <div class="col-span-4 flex gap-2 p-2">
+                  <div class="col-span-4 flex flex-wrap gap-2 p-2">
                     <Badge label="Level" :value="action.level" color="blue" />
                     <Badge
-                      label=""
-                      :value="'+' + action.sloveEarned + 'SLove'"
+                      label="Slove Gained (Gross)"
+                      :value="'+' + utils.formatNumber(action.sloveGained)"
                       color="green"
                     />
                     <Badge
-                      :label="'-' + action.enduCost"
-                      value="Endurance"
+                      label="Endurance Consumed"
+                      :value="
+                        '-' +
+                        utils.formatNumber(action.enduranceConsumedThisHunt, 2)
+                      "
                       color="red"
                     />
                     <Badge
-                      v-if="s.key !== 'nonLeader' && s.key !== 'nonLeaderBoosted'"
+                      v-if="action.sloveCostForRecoveryApplied > 0"
+                      label="Slove Cost (Recovery)"
+                      :value="
+                        '-' +
+                        utils.formatNumber(action.sloveCostForRecoveryApplied)
+                      "
+                      color="orange"
+                    />
+                    <Badge
+                      v-if="action.enduranceRecoveredThisCycle > 0"
+                      label="Endurance Recovered"
+                      :value="
+                        '+' +
+                        utils.formatNumber(
+                          action.enduranceRecoveredThisCycle,
+                          2
+                        )
+                      "
+                      color="teal"
+                    />
+                    <Badge
+                      v-if="
+                        action.recoveryDetails &&
+                        action.recoveryDetails.amountSkipped > 0
+                      "
+                      :label="
+                        'Recovery Skipped (' +
+                        action.recoveryDetails.reason +
+                        ')'
+                      "
+                      :value="
+                        utils.formatNumber(
+                          action.recoveryDetails.amountSkipped,
+                          2
+                        ) + ' End.'
+                      "
+                      color="yellow"
+                    />
+                    <Badge
+                      label="Unrec. Leader"
+                      :value="
+                        utils.formatNumber(
+                          action.unrecoveredEnduranceByLeaderAfterHunt,
+                          2
+                        )
+                      "
+                      color="pink"
+                    />
+                    <Badge
+                      label="Unrec. Delegate"
+                      :value="
+                        utils.formatNumber(
+                          action.unrecoveredEnduranceByDelegateAfterHunt,
+                          2
+                        )
+                      "
+                      color="purple"
+                    />
+                    <Badge
+                      v-if="
+                        s.key !== 'nonLeader' &&
+                        s.key !== 'nonLeaderBoosted' &&
+                        action.currentStats
+                      "
                       label="Stats: "
-                      :value="`P:${action.prof} R:${action.rec}`"
+                      :value="`P:${action.currentStats.simProficiency} R:${action.currentStats.simRecovery}`"
                       color="blue"
                     />
                   </div>
                   <span class="text-xs text-gray-500 ml-2 self-center">
                     <IconClock class="w-4 h-4 inline-block" />
-                    {{ utils.formatTimeDH(action.currentTotalTimeMin) }}
+                    {{ utils.formatTimeDH(action.timeElapsedMin) }}
                   </span>
                 </div>
                 <div
                   class="grid grid-cols-6 items-stretch"
-                  v-else-if="action.type === 'LEVEL_NORMAL_START'"
+                  v-else-if="action.type === 'NORMAL_LEVEL_UP'"
                 >
                   <div
                     class="flex items-center col-span-1 font-bold text-lg bg-green-400 px-2 rounded-tl"
@@ -128,7 +193,6 @@
                       :value="'-' + action.seedCost + ' SEED'"
                       color="red"
                     />
-
                     <Badge
                       label="Duration: "
                       :value="utils.formatTimeDH(action.durationMin)"
@@ -137,12 +201,12 @@
                   </div>
                   <span class="text-xs text-gray-500 ml-2 self-center">
                     <IconClock class="w-4 h-4 inline-block" />
-                    {{ utils.formatTimeDH(action.currentTotalTimeMin) }}
+                    {{ utils.formatTimeDH(action.timeElapsedMin) }}
                   </span>
                 </div>
                 <div
                   class="grid grid-cols-6 items-stretch"
-                  v-else-if="action.type === 'LEVEL_BOOST'"
+                  v-else-if="action.type === 'BOOSTED_LEVEL_UP'"
                 >
                   <div
                     class="flex items-center col-span-1 font-bold text-xs bg-purple-400 px-2 rounded-tl"
@@ -160,7 +224,6 @@
                       :value="'-' + action.sloveCost + ' SLove'"
                       color="green"
                     />
-
                     <Badge
                       label=""
                       :value="'-' + action.seedCost + ' SEED'"
@@ -168,31 +231,18 @@
                     />
                     <Badge
                       label="Boosted"
-                      :value="'-' + action.boostCost + ' SLove'"
+                      :value="'-' + action.boostSloveCost + ' SLove'"
                       color="red"
                     />
                   </div>
                   <span class="text-xs text-gray-500 ml-2 self-center">
                     <IconClock class="w-4 h-4 inline-block" />
-                    {{ utils.formatTimeDH(action.currentTotalTimeMin) }}
+                    {{ utils.formatTimeDH(action.timeElapsedMin) }}
                   </span>
                 </div>
                 <div
-                  class="flex gap-2"
-                  v-else-if="action.type === 'DECISION_WAIT_FOR_BOOST'"
-                >
-                  <strong class="text-yellow-700"
-                    >Strategy Decision (at Lv {{ action.atLevel }} targeting Lv
-                    {{ action.targetLevel }}): Chose to Wait/Hunt (est.
-                    {{ utils.formatTimeDH(action.waitTimeEstMin) }}) instead of
-                    Normal Level Up ({{
-                      utils.formatTimeDH(action.normalTimeMin)
-                    }}) to afford boost.</strong
-                  >
-                </div>
-                <div
                   class="grid grid-cols-6 items-stretch"
-                  v-else-if="action.type === 'WAIT'"
+                  v-else-if="action.type === 'WAIT_FOR_ENERGY'"
                 >
                   <div
                     class="flex items-center col-span-1 font-bold text-lg bg-gray-400 px-2 rounded-tl w-full"
@@ -205,13 +255,33 @@
                       :value="utils.formatTimeDH(action.durationMin)"
                       color="green"
                     />
+                    <Badge
+                      label="Energy Gained"
+                      :value="action.energyGained"
+                      color="blue"
+                    />
                   </div>
                   <span class="text-xs text-gray-500 ml-2 self-center">
                     <IconClock class="w-4 h-4 inline-block" />
-                    {{ utils.formatTimeDH(action.currentTotalTimeMin) }}
+                    {{ utils.formatTimeDH(action.timeElapsedMin) }}
                   </span>
                 </div>
-                <span v-else> Unknown Action: {{ action }} </span>
+                <div
+                  class="flex gap-2 items-center"
+                  v-else-if="action.type === 'INITIAL_STATE'"
+                >
+                  <strong class="text-blue-700"
+                    >Simulation Start: Level {{ action.level }}, Slove
+                    {{ action.sloveBalance }}</strong
+                  >
+                  <span class="text-xs text-gray-500 ml-2 self-center">
+                    <IconClock class="w-4 h-4 inline-block mr-1" />
+                    {{ utils.formatTimeDH(action.timeElapsedMin) }}
+                  </span>
+                </div>
+                <span v-else>
+                  Unknown Action Type: {{ action.type }} - {{ action }}
+                </span>
               </li>
             </ul>
           </div>
@@ -246,13 +316,15 @@ function toggleOpen(key) {
 }
 
 function getActionClass(action) {
-  return "bg-gray-100 rounded px-2 py-1 mb-1 overflow-hidden"; // default class
-  if (action.type === "HUNT") return "bg-purple-200 rounded px-2 py-1 mb-1"; // "we have no money"
-  if (action.type === "LEVEL_NORMAL_START" || action.type === "LEVEL_BOOST")
-    return "bg-green-200 rounded px-2 py-1 mb-1"; // "good color"
-  if (action.type === "DECISION_WAIT_FOR_BOOST" || action.type === "WAIT")
-    return "bg-orange-200 text-black rounded px-2 py-1 mb-1"; // "ahhh shit"
-  return "bg-red-100 rounded px-2 py-1 mb-1";
+  if (action.type === "HUNT")
+    return "bg-red-50 border border-red-200 rounded px-2 py-1 mb-1 overflow-hidden";
+  if (action.type === "NORMAL_LEVEL_UP" || action.type === "BOOSTED_LEVEL_UP")
+    return "bg-green-50 border border-green-200 rounded px-2 py-1 mb-1 overflow-hidden";
+  if (action.type === "WAIT_FOR_ENERGY")
+    return "bg-yellow-50 border border-yellow-200 rounded px-2 py-1 mb-1 overflow-hidden";
+  if (action.type === "INITIAL_STATE")
+    return "bg-blue-50 border border-blue-200 rounded px-2 py-1 mb-1 overflow-hidden";
+  return "bg-gray-50 border border-gray-200 rounded px-2 py-1 mb-1 overflow-hidden"; // Default for unknown or new types
 }
 </script>
 <style scoped>

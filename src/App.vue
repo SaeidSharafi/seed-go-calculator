@@ -12,7 +12,6 @@ import BottomNavBar from "./components/BottomNavBar.vue";
 import CalculateButton from "./components/CalculateButton.vue";
 import StatsProgressTab from "./components/StatsProgressTab.vue";
 import EarningsOutcomeTab from "./components/EarningsOutcomeTab.vue";
-import SlovByAgeTab from "./components/SlovByAgeTab.vue";
 import LevelingScenarioTab from "./components/LevelingScenarioTab.vue";
 import {
   IconAward,
@@ -38,7 +37,7 @@ const form = reactive({
   leaderProficiency: 1,
   leaderRecovery: 1,
   leaderClass: "Aqua",
-  leaderType: "Common",
+  leaderRarityName: "Common",
   targetAge: 10,
 });
 
@@ -147,7 +146,7 @@ onMounted(() => {
     "currentTotalProficiency",
     "currentTotalRecovery"
   );
-  updateInputsForRarity(form.leaderType, "leaderProficiency", "leaderRecovery");
+  updateInputsForRarity(form.leaderRarityName, "leaderProficiency", "leaderRecovery");
 });
 </script>
 
@@ -221,21 +220,17 @@ onMounted(() => {
                 <StatsProgressTab
                   v-if="activeTab === 0"
                   :result="result"
+                  :scenarioResults="scenarioResults"
                   :form="form"
                   :utils="Utils"
                 />
                 <EarningsOutcomeTab
                   v-else-if="activeTab === 1"
                   :result="result"
+                  :scenarioResults="scenarioResults"
                   :form="form"
                 />
-                <SlovByAgeTab
-                  v-else-if="activeTab === 2"
-                  :result="result"
-                  :form="form"
-                >
-                  <YearlyBreakdownTable :result="result" :form="form" />
-                </SlovByAgeTab>
+                <YearlyBreakdownTable v-else-if="activeTab === 2" :result="result" :form="form" :scenarioResults="scenarioResults"/>
                 <LevelingScenarioTab
                   v-else-if="activeTab === 3"
                   :scenarioResults="scenarioResults"

@@ -1,5 +1,12 @@
 <template>
-  <div id="results-table-container" class="mb-4 animate-fade-in">
+   <div
+      v-if="scenarioResults.leader.error"
+     id="results-table-container" class="bg-green-50 rounded-xl p-4 shadow flex flex-col gap-2 border border-green-100 text-red-500"
+    >
+      <p class="font-semibold">Error</p>
+      <p>Impossible to Level up</p>
+    </div>
+ <div v-else id="results-table-container" class="mb-4 animate-fade-in">
     <div
       v-if="
         result.yearlyBreakdown &&
@@ -26,6 +33,8 @@
             <th class="p-2 font-semibold">Age</th>
             <th class="p-2 font-semibold">End Level</th>
             <th class="p-2 font-semibold">Avg SLOV/Hunt</th>
+            <th class="p-2 font-semibold">Avg Endurance Used</th>
+            <th class="p-2 font-semibold">Avg Rec Cost</th>
             <th class="p-2 font-semibold">Hunts</th>
             <th class="p-2 font-semibold">Total SLOV</th>
             <th class="p-2 font-semibold">End Balance</th>
@@ -40,6 +49,8 @@
             <td class="p-2">Year {{ year.age }}</td>
             <td class="p-2">Lv {{ year.level }}</td>
             <td class="p-2">{{ year.slovePerHunt }}</td>
+            <td class="p-2">{{ year.endurancePerHunt }}</td>
+            <td class="p-2">{{ year.recoveryCostPerhunt }}</td>
             <td class="p-2">{{ year.huntsInYear }}</td>
             <td class="p-2">{{ year.totalSloveInYear }}</td>
             <td class="p-2">{{ year.sloveBalance ?? 0 }}</td>
@@ -58,6 +69,7 @@
 <script setup>
 const props = defineProps({
   result: Object,
+  scenarioResults: Object,
   form: Object,
 });
 </script>
@@ -119,13 +131,19 @@ const props = defineProps({
   td:nth-of-type(3):before {
     content: "Avg SLOV/Hunt";
   }
-  td:nth-of-type(4):before {
-    content: "Hunts";
+    td:nth-of-type(4):before {
+    content: "Avg Endurance Used";
   }
   td:nth-of-type(5):before {
-    content: "Total SLOV";
+    content: "Avg Rec Cost";
   }
   td:nth-of-type(6):before {
+    content: "Hunts";
+  }
+  td:nth-of-type(7):before {
+    content: "Total SLOV";
+  }
+  td:nth-of-type(8):before {
     content: "End Balance";
   }
 }

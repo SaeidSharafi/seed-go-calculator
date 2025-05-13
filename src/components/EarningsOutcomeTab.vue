@@ -1,4 +1,13 @@
 <template>
+  
+    <div
+      v-if="scenarioResults.leader.error"
+      class="bg-green-50 rounded-xl p-4 shadow flex flex-col gap-2 border border-green-100 text-red-500"
+    >
+      <p class="font-semibold">Error</p>
+      <p>Impossible to Level up</p>
+    </div>
+  <div v-else>
   <div
     class="results-section mb-4 bg-yellow-50 rounded-xl p-4 shadow border border-yellow-100 text-sm md:text-base"
   >
@@ -67,11 +76,14 @@
       </dd>
     </dl>
   </div>
+  </div>
+
 </template>
 <script setup>
 import { IconAlertCircle, IconCalendar } from "@tabler/icons-vue";
 const props = defineProps({
   result: Object,
+  scenarioResults: Object,
   form: Object,
 });
 </script>

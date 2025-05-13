@@ -1,6 +1,14 @@
 <template>
   <div class="results-section mb-4 grid grid-cols-1 gap-4 text-xs md:text-base">
     <div
+      v-if="scenarioResults.leader.error"
+      class="bg-green-50 rounded-xl p-4 shadow flex flex-col gap-2 border border-green-100 text-red-500"
+    >
+      <p class="font-semibold">Error</p>
+      <p>Impossible to Level up</p>
+    </div>
+    <div
+      v-else
       class="bg-green-50 rounded-xl p-4 shadow flex flex-col gap-2 border border-green-100"
     >
       <h3 class="font-bold mb-2 flex items-center gap-1 text-green-700">
@@ -120,6 +128,7 @@ import GaugeProgress from "./GaugeProgress.vue";
 import CardSection from "./CardSection.vue";
 const props = defineProps({
   result: Object,
+  scenarioResults: Object,
   form: Object,
   utils: Object,
 });
