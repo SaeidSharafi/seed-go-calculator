@@ -31,7 +31,7 @@ export const LEVEL_UP_DATA = [
     { level: "3", priceSlove: "3", priceSeed: "30", timeHour: "3" },
     { level: "4", priceSlove: "4", priceSeed: "40", timeHour: "4" },
     { level: "5", priceSlove: "20", priceSeed: "100", timeHour: "5" },
-    { level: "6", priceSlove: "9", priceSeed: "69", timeHour: "6" },
+    { level: "6", priceSlove: "9", priceSeed: "90", timeHour: "6" },
     { level: "7", priceSlove: "10.5", priceSeed: "105", timeHour: "7" },
     { level: "8", priceSlove: "12", priceSeed: "120", timeHour: "8" },
     { level: "9", priceSlove: "13.5", priceSeed: "135", timeHour: "9" },
