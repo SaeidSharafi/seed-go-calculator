@@ -268,14 +268,14 @@
                   </span>
                 </div>
                 <div
-                  class="md:grid grid-cols-6 items-stretch flex flex-col"
+                  class="items-stretch flex justify-between px-4"
                   v-else-if="action.type === 'INITIAL_STATE'"
                 >
                   <strong class="text-blue-700"
                     >Simulation Start: Level {{ action.level }}, Slove
                     {{ action.sloveBalance }}</strong
                   >
-                  <span class="text-xs text-gray-500 md:ml-2 text-center self-center bg-gray-100 w-full md:w-auto md:bg-none">
+                  <span class="text-xs text-gray-500 text-center self-center bg-gray-100 w-full md:w-auto md:bg-none">
                     <IconClock class="w-4 h-4 inline-block mr-1" />
                     {{ utils.formatTimeDH(action.timeElapsedMin) }}
                   </span>
